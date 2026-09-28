@@ -35,7 +35,9 @@
     "DI_PUSHER_PROX_TOP": 14,
     "DI_PUSHER_PROX_BOTTOM": 15,
     "_comment_call_start": "DI4 = CALL START. Rising edge starts AUTO, tapi HANYA kalau AGV lagi di homepost (DO_AT_HOME nyala) dan mode ARMED. Run yang di-start dari DI4 akan berhenti di RFID B0 (sequence stop_at_b0). -1 = tidak dipakai.",
-    "DI_CALL_START": 4
+    "DI_CALL_START": 4,
+    "_comment_reverse_marker": "DI10 = marker stop presisi, HANYA dibaca saat REVERSING (rising edge). Menjalankan sequence stop_at_c1 yang sama dengan RFID CC — mana yang duluan (marker atau CC) yang dipakai. -1 = tidak dipakai.",
+    "DI_REVERSE_MARKER": 10
   },
   "motor_channels": {
     "_comment": "DO and AO channel indices for each motor drive. do_alarm (DO3/DO7) dihapus — tidak dipakai, DO3 dan DO7 sekarang bebas.",
@@ -322,12 +324,30 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "RFID CA — mendekati marker stop saat REVERSING: kecepatan mundur turun ke 0.1 m/s supaya berhenti presisi di marker DI10 / RFID CC. Tag placeholder: ganti 00CA dengan hex tag sebenarnya.",
+      "name": "reverse_approach_ca",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00CA"
+      },
+      "actions": [
+        {
+          "type": "set_reverse_speed",
+          "speed": 0.1
+        }
+      ],
+      "cooldown_s": 3.0,
+      "requires_mode": "reversing"
+    },
+    {
       "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu DI14 proximity atas (wait_hooked, timeout 30s), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Kalau wait_hooked timeout: REVERSE tetap diakhiri dan AGV jalan maju (fail-open). Tag placeholder: ganti 00CC.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
         "type": "rfid",
-        "rfid_tag": "00CC"
+        "rfid_tag": "00CC",
+        "reverse_marker": true
       },
       "actions": [
         {
@@ -442,6 +462,19 @@
     "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",
     "DO_AUTO": 8,
     "DO_ALARM": 9
+  },
+  "lidar": {
+    "_comment": "Lidar safety field, HANYA saat AUTO maju (RUNNING). DI ON = ada objek. OUTER (DI11) -> maks 0.5 m/s, MIDDLE (DI12) -> maks 0.2 m/s, turun pelan pakai DECEL_RATE. INNER (DI13) -> langsung rem; setelah INNER bersih tunggu RESUME_DELAY_S lalu jalan lagi. DO_AREA (DO3, DO7) = pilih area/field set lidar; pola di-set lewat aksi set_lidar_area di sequence RFID (DEFAULT_AREA saat start/reset). ENABLED false = lidar diabaikan.",
+    "ENABLED": true,
+    "DI_OUTER": 11,
+    "DI_MIDDLE": 12,
+    "DI_INNER": 13,
+    "OUTER_SPEED": 0.5,
+    "MIDDLE_SPEED": 0.2,
+    "DECEL_RATE": 0.2,
+    "RESUME_DELAY_S": 2.0,
+    "DO_AREA": [3, 7],
+    "DEFAULT_AREA": [false, false]
   },
   "homepost": {
     "_comment": "RFID_TAG = tag homepost (sama dengan trigger arrive_homepost). DO_AT_HOME nyala selama AGV ada di homepost (dan tidak sedang RUNNING/REVERSING). ASSUME_AT_HOME_ON_BOOT: true = saat program start, AGV dianggap sudah di homepost (DO11 langsung nyala, DI4 langsung bisa dipakai). Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",

@@ -59,6 +59,13 @@ def _build_di_names():
         names[config.DI_PUSHER_PROX_TOP] = "PUSHER PROX TOP"
     if 0 <= config.DI_PUSHER_PROX_BOTTOM < config.NUM_DI:
         names[config.DI_PUSHER_PROX_BOTTOM] = "PUSHER PROX BOTTOM"
+    for _idx, _lbl in ((config.LIDAR_DI_OUTER, "LIDAR OUTER (≤0.5)"),
+                       (config.LIDAR_DI_MIDDLE, "LIDAR MIDDLE (≤0.2)"),
+                       (config.LIDAR_DI_INNER, "LIDAR INNER (STOP)")):
+        if 0 <= _idx < config.NUM_DI:
+            names[_idx] = _lbl
+    if 0 <= config.DI_REVERSE_MARKER < config.NUM_DI:
+        names[config.DI_REVERSE_MARKER] = "REVERSE STOP MARKER"
     if 0 <= config.DI_CALL_START < config.NUM_DI:
         names[config.DI_CALL_START] = "CALL START (to B0)"
     return names
@@ -88,6 +95,9 @@ def _build_do_names():
         names[config.DO_HORN_AUTO] = "HORN (AUTO)"
     if 0 <= config.DO_HORN_ALARM < config.NUM_DO:
         names[config.DO_HORN_ALARM] = "HORN (ALARM)"
+    for _k, _ch in enumerate(config.LIDAR_DO_AREA):
+        if 0 <= _ch < config.NUM_DO:
+            names[_ch] = f"LIDAR AREA SEL {_k + 1}"
     if 0 <= config.DO_AT_HOME < config.NUM_DO:
         names[config.DO_AT_HOME] = "AT HOMEPOST"
     return names
@@ -109,6 +119,8 @@ def _build_state_snapshot():
         "track_follow":         s.track_follow,
         "active_branch":        s.active_branch,
         "at_homepost":          s.at_homepost,
+        "lidar_zone":           s.lidar_zone,
+        "lidar_area":           s.lidar_area,
         "call_run":             s.call_run,
         "sequence_stop":        s.sequence_stop,
         "latest_rfid_tag":      s.latest_rfid_tag,

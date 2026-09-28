@@ -16,6 +16,25 @@ logger = logging.getLogger(__name__)
 #  AUTO MODE  (forward tape-following only)
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _lidar_zone(state):
+    """Innermost lidar field currently occupied ("inner"/"middle"/"outer")
+    or None. ON = object (as seen after DI_FLIPPED). Disabled → None."""
+    if not config.LIDAR_ENABLED:
+        return None
+    di = state.latest_di
+    if di is None:
+        return None
+    def on(idx):
+        return 0 <= idx < len(di) and bool(di[idx])
+    if on(config.LIDAR_DI_INNER):
+        return "inner"
+    if on(config.LIDAR_DI_MIDDLE):
+        return "middle"
+    if on(config.LIDAR_DI_OUTER):
+        return "outer"
+    return None
+
+
 async def auto_mode(state, engine=None):
     """Forward tape-following PID loop.
 
@@ -57,6 +76,8 @@ async def auto_mode(state, engine=None):
     _dbg_count           = 0      # throttles the per-cycle PID debug log
     ff_filtered          = 0.0    # low-pass filtered curvature feedforward (rpm)
     prox_was_active      = False  # edge-detect for the DI proximity station marker
+    lidar_stopped        = False  # braked by the lidar INNER field
+    lidar_clear_since    = None   # when INNER cleared (resume after RESUME_DELAY_S)
 
     recorder = RunRecorder()
     recorder.start()
@@ -94,6 +115,35 @@ async def auto_mode(state, engine=None):
                 await motion.set_forward(state, 0.0)
                 was_sequence_stopped = False
 
+            # ── Lidar safety fields (AUTO forward only) ──────────────────────
+            zone = _lidar_zone(state)
+            state.lidar_zone = zone
+            if zone == "inner":
+                if not lidar_stopped:
+                    logger.warning("[AUTO] LIDAR INNER field — stopping")
+                    await motion.set_brake(state)
+                    current_target_speed = 0.0
+                    pid.reset()
+                    last_valid_pv = None
+                    ff_filtered   = 0.0
+                    lidar_stopped = True
+                lidar_clear_since = None
+                await asyncio.sleep(config.DT)
+                continue
+            if lidar_stopped:
+                now_t = time.perf_counter()
+                if lidar_clear_since is None:
+                    lidar_clear_since = now_t
+                    logger.info("[AUTO] LIDAR INNER clear — resuming in %.1fs",
+                                config.LIDAR_RESUME_DELAY_S)
+                if now_t - lidar_clear_since < config.LIDAR_RESUME_DELAY_S:
+                    await asyncio.sleep(config.DT)
+                    continue
+                logger.info("[AUTO] LIDAR — resuming")
+                await motion.set_forward(state, 0.0)
+                lidar_stopped     = False
+                lidar_clear_since = None
+
             # ── Target speed and PID gain selection ───────────────────────────
             if state.speed_mode == "APPROACH":
                 target_speed = config.AUTO_TARGET_APPROACH_SPEED
@@ -101,6 +151,14 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_SLOW_SPEED
             else:
                 target_speed = config.AUTO_TARGET_HIGH_SPEED
+            # Lidar caps (never raises the speed).
+            lidar_cap = None
+            if zone == "middle":
+                lidar_cap = config.LIDAR_MIDDLE_SPEED
+            elif zone == "outer":
+                lidar_cap = config.LIDAR_OUTER_SPEED
+            if lidar_cap is not None and target_speed > lidar_cap:
+                target_speed = lidar_cap
 
             # Only switch gains when speed_mode actually changes — avoids
             # redundant recomputation of the derivative filter coefficient.
@@ -170,6 +228,8 @@ async def auto_mode(state, engine=None):
                     decel_rate = (config.APPROACH_DECEL_RATE
                                   if state.speed_mode == "APPROACH"
                                   else config.DECEL_RATE)
+                    if lidar_cap is not None and target_speed == lidar_cap:
+                        decel_rate = config.LIDAR_DECEL_RATE
                     current_target_speed -= decel_rate * config.DT
                     if current_target_speed < target_speed:
                         current_target_speed = target_speed
@@ -373,6 +433,15 @@ async def reverse_mode(state, engine=None):
     last_valid_pv          = None
     deadline    = time.perf_counter() + config.REVERSE_TIMEOUT_S
     timed_out   = False
+    # Reverse stop marker (DI_REVERSE_MARKER): edge-triggered. Start from the
+    # CURRENT reading so an AGV already sitting on the marker (or an unwired
+    # input that reads ON) does not fire the stop the moment reverse starts.
+    _mk = config.DI_REVERSE_MARKER
+    def _marker_on():
+        di = state.latest_di
+        return bool(_mk >= 0 and di is not None and len(di) > _mk and di[_mk])
+    marker_prev = _marker_on()
+    state.reverse_speed_override = None   # CA sets it again on this run
     held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
     held_remain = 0.0     # timeout budget left when the hold started
 
@@ -394,6 +463,13 @@ async def reverse_mode(state, engine=None):
                 last_valid_pv = None
                 await asyncio.sleep(config.DT)
                 continue
+
+            # ── Reverse stop marker (rising edge) ─────────────────────────────
+            marker_now = _marker_on()
+            if marker_now and not marker_prev and engine is not None:
+                logger.info("[REVERSE] Stop marker DI%d detected", _mk)
+                await engine.on_reverse_marker()
+            marker_prev = marker_now
 
             # ── Sequence stop — hold in place, still in REVERSE mode ──────────
             # C1 stops the AGV here (stop_agv) and keeps REVERSE active while
@@ -435,7 +511,9 @@ async def reverse_mode(state, engine=None):
                 await asyncio.sleep(config.DT)
                 continue
 
-            target_speed = config.AUTO_TARGET_REVERSE_SPEED
+            target_speed = (state.reverse_speed_override
+                            if state.reverse_speed_override is not None
+                            else config.AUTO_TARGET_REVERSE_SPEED)
 
             # ── Drain sensor queue — keep only the latest frame ───────────────
             sensor = None
@@ -626,6 +704,7 @@ async def mode_manager(state, engine=None, manager=None):
     last_start     = False
     last_reset     = False
     last_call      = False
+    state.lidar_area = list(config.LIDAR_DEFAULT_AREA)
     # AGV is normally parked at homepost at power-up (profile homepost.
     # ASSUME_AT_HOME_ON_BOOT) — see state.at_homepost.
     state.at_homepost = config.ASSUME_AT_HOME_ON_BOOT
@@ -663,6 +742,8 @@ async def mode_manager(state, engine=None, manager=None):
         state.reverse_request     = False
         state.homepost_request    = False
         state.leaving_home        = False
+        state.reverse_speed_override = None
+        state.lidar_area          = list(config.LIDAR_DEFAULT_AREA)
         state.web_reverse_start   = False
         state.web_reverse_stop    = False
         state.call_run            = False   # next run is a normal run unless DI_CALL_START launches it
@@ -696,6 +777,12 @@ async def mode_manager(state, engine=None, manager=None):
             state.set_do(config.DO_HORN_AUTO, current_mode in ("running", "reversing"))
         if config.DO_HORN_ALARM >= 0:
             state.set_do(config.DO_HORN_ALARM, state.alarm_active)
+        # Lidar field-set select outputs (pattern from set_lidar_area).
+        for _k, _ch in enumerate(config.LIDAR_DO_AREA):
+            if _ch >= 0:
+                state.set_do(_ch, state.lidar_area[_k])
+        if current_mode != "running":
+            state.lidar_zone = None
         # DO_AT_HOME: on while parked at homepost (off the moment AUTO drives away).
         if config.DO_AT_HOME >= 0:
             state.set_do(config.DO_AT_HOME,

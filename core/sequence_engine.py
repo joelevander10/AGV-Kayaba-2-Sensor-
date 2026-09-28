@@ -83,6 +83,8 @@ class SequenceEngine:
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
             "pusher_up":         self._act_pusher_up,
+            "set_reverse_speed": self._act_set_reverse_speed,
+            "set_lidar_area":    self._act_set_lidar_area,
         }
 
     # ── Plugin point ─────────────────────────────────────────────────────────
@@ -157,6 +159,23 @@ class SequenceEngine:
                 if approach_timeout:
                     asyncio.create_task(
                         self._approach_timeout_watch(seq["name"], approach_timeout))
+
+    async def on_reverse_marker(self):
+        """Called by reverse_mode on a rising edge of DI_REVERSE_MARKER.
+        Fires every sequence whose trigger has "reverse_marker": true — the
+        same sequence as its RFID tag, so marker and tag share one cooldown
+        and whichever arrives first wins (the other is ignored while the
+        sequence runs and during its cooldown)."""
+        now = time.time()
+        for seq in self._sequences:
+            if not seq["trigger"].get("reverse_marker"):
+                continue
+            if not self._category_enabled(seq):
+                continue
+            if not self._check_preconditions(seq, now):
+                continue
+            logger.info("[SEQ] Reverse marker — launching '%s'", seq["name"])
+            self._active_task = asyncio.create_task(self._run_sequence(seq))
 
     async def on_marker(self, side: str):
         """Called by auto_mode whenever a left/right marker is detected in the
@@ -442,6 +461,27 @@ class SequenceEngine:
                     return
             await asyncio.sleep(0.02)
         raise SequenceTimeout(f"wait_marker side={side}")
+
+    async def _act_set_lidar_area(self, p: dict):
+        """Select the lidar field set: {"area": [bool, bool]} drives
+        lidar.DO_AREA[0] / [1] (DO3 / DO7 on agv2). Stays until the next
+        set_lidar_area or a reset (back to lidar.DEFAULT_AREA)."""
+        area = p.get("area")
+        if not (isinstance(area, list) and len(area) == 2):
+            logger.warning("[SEQ] set_lidar_area: 'area' must be [bool, bool] — ignored")
+            return
+        self._state.lidar_area = [bool(area[0]), bool(area[1])]
+        logger.info("[SEQ] Lidar area → %s", self._state.lidar_area)
+
+    async def _act_set_reverse_speed(self, p: dict):
+        """Override the REVERSE target speed (m/s), e.g. RFID CA slows the
+        approach to the stop marker. reverse_mode ramps to it with DECEL_RATE."""
+        speed = float(p["speed"])
+        if speed <= 0:
+            logger.warning("[SEQ] set_reverse_speed: speed must be > 0 (got %s) — ignored", speed)
+            return
+        self._state.reverse_speed_override = speed
+        logger.info("[SEQ] Reverse speed → %.2f m/s", speed)
 
     async def _act_pusher_up(self, p: dict):
         """Command the pusher to full-travel UP — same path as the web FULL UP

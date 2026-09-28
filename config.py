@@ -86,6 +86,11 @@ DI_PUSHER_PROX_BOTTOM = _params["io_mapping"].get("DI_PUSHER_PROX_BOTTOM", -1)
 # state.call_run, which gates the profile's "stop_at_b0" sequence
 # ("requires_flag": "call_run"). -1 = not wired.
 DI_CALL_START = _params["io_mapping"].get("DI_CALL_START", -1)
+# REVERSE stop marker — magnetic/prox marker read ONLY while REVERSING. A
+# rising edge fires any sequence whose trigger has "reverse_marker": true
+# (the CC stop), so the AGV stops on the marker or on RFID CC, whichever
+# comes first. -1 = not wired.
+DI_REVERSE_MARKER = _params["io_mapping"].get("DI_REVERSE_MARKER", -1)
 
 # ── Motor Channels (parameterized — avoids hardcoded DO 0-5 in motion.py) ────
 # Falls back to the hardcoded mapping if the profile doesn't have this section
@@ -327,6 +332,25 @@ _horn = _params.get("horn", {})
 DO_HORN_AUTO  = _horn.get("DO_AUTO",  -1)
 DO_HORN_ALARM = _horn.get("DO_ALARM", -1)
 
+# ── Lidar safety fields (AUTO forward only) ───────────────────────────────────
+# Three lidar outputs, read as DI (ON = object in that field, as the code
+# sees it after DI_FLIPPED). OUTER caps speed at OUTER_SPEED, MIDDLE at
+# MIDDLE_SPEED (both reached with DECEL_RATE, i.e. slowly), INNER brakes at
+# once; after INNER clears the AGV waits RESUME_DELAY_S and continues.
+# DO_AREA: the two outputs that select the lidar's field set (pattern set by
+# the "set_lidar_area" sequence action, DEFAULT_AREA at start / reset).
+_lidar = _params.get("lidar", {})
+LIDAR_ENABLED        = bool(_lidar.get("ENABLED", False))
+LIDAR_DI_OUTER       = _lidar.get("DI_OUTER",  -1)
+LIDAR_DI_MIDDLE      = _lidar.get("DI_MIDDLE", -1)
+LIDAR_DI_INNER       = _lidar.get("DI_INNER",  -1)
+LIDAR_OUTER_SPEED    = float(_lidar.get("OUTER_SPEED",  0.5))
+LIDAR_MIDDLE_SPEED   = float(_lidar.get("MIDDLE_SPEED", 0.2))
+LIDAR_DECEL_RATE     = float(_lidar.get("DECEL_RATE", _params["speeds"]["DECEL_RATE"]))
+LIDAR_RESUME_DELAY_S = float(_lidar.get("RESUME_DELAY_S", 2.0))
+LIDAR_DO_AREA        = list(_lidar.get("DO_AREA", [-1, -1]))
+LIDAR_DEFAULT_AREA   = [bool(v) for v in _lidar.get("DEFAULT_AREA", [False, False])]
+
 # ── Homepost ──────────────────────────────────────────────────────────────────
 # RFID_TAG: the homepost tag (keep in sync with the arrive_homepost sequence).
 # DO_AT_HOME: on while state.at_homepost and the AGV is not RUNNING/REVERSING.
@@ -393,6 +417,20 @@ def _validate():
     check(NUM_AO >= 0, f"NUM_AO must be >= 0 (got {NUM_AO})")
     check(ERROR_SIGN_FORWARD in (-1.0, 1.0),
           f"pid_tuning.ERROR_SIGN_FORWARD must be -1 or 1 (got {ERROR_SIGN_FORWARD})")
+    if LIDAR_ENABLED:
+        for name, idx in [("lidar DI_OUTER", LIDAR_DI_OUTER), ("lidar DI_MIDDLE", LIDAR_DI_MIDDLE),
+                          ("lidar DI_INNER", LIDAR_DI_INNER)]:
+            check(-1 <= idx < NUM_DI, f"{name} must be -1 or in [0, {NUM_DI}) (got {idx})")
+        check(LIDAR_OUTER_SPEED > 0 and LIDAR_MIDDLE_SPEED > 0,
+              "lidar OUTER_SPEED / MIDDLE_SPEED must be > 0")
+        check(LIDAR_DECEL_RATE > 0, f"lidar DECEL_RATE must be > 0 (got {LIDAR_DECEL_RATE})")
+        check(LIDAR_RESUME_DELAY_S >= 0, "lidar RESUME_DELAY_S must be >= 0")
+    check(len(LIDAR_DO_AREA) == 2 and len(LIDAR_DEFAULT_AREA) == 2,
+          "lidar DO_AREA and DEFAULT_AREA must each have 2 entries")
+    for idx in LIDAR_DO_AREA:
+        check(-1 <= idx < NUM_DO, f"lidar DO_AREA channel must be -1 or in [0, {NUM_DO}) (got {idx})")
+    if DI_REVERSE_MARKER >= 0:
+        check(DI_REVERSE_MARKER < NUM_DI, f"DI_REVERSE_MARKER must be in [0, {NUM_DI}) (got {DI_REVERSE_MARKER})")
     if DI_CALL_START >= 0:
         check(DI_CALL_START < NUM_DI, f"DI_CALL_START must be in [0, {NUM_DI}) (got {DI_CALL_START})")
     if DO_AT_HOME >= 0:

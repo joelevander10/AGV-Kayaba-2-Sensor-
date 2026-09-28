@@ -166,6 +166,15 @@ class AMRState:
         # ARMED, stop only in REVERSING; stale pulses are dropped elsewhere.
         self.web_reverse_start = False
         self.web_reverse_stop  = False
+        # REVERSE speed override (m/s). Set by the "set_reverse_speed" action
+        # (RFID CA: approach the stop marker at 0.1 m/s). None = use
+        # config.AUTO_TARGET_REVERSE_SPEED. Cleared when a reverse starts and
+        # by _reset_sequence_state.
+        self.reverse_speed_override = None
+        # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
+        # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
+        self.lidar_zone = None
+        self.lidar_area = [False, False]
         # IO TEST MODE (web IO page). While io_test_mode is True, do_override
         # {channel: bool} wins over whatever the control code asked for in
         # do_setpoints — applied in the DO writer, so pusher/horn/motion keep
