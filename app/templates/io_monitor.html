@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGV — IO Monitor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #d4d0c8;
+    color: #000;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    padding: 15px;
+    padding-bottom: 101px;
+  }
+
+  .raised {
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: #000080;
+    color: #fff;
+    padding: 10px 19px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  #header .title { flex: 1; }
+  #ts { font-size: 18px; color: #c0c0c0; letter-spacing: 1px; }
+
+  .mode-badge {
+    padding: 2px 28px;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    background: #c0c0c0; color: #000;
+  }
+  .mode-manual    { background: #0000c0; color: #fff; }
+  .mode-armed     { background: #c0a000; color: #000; }
+  .mode-running   { background: #008000; color: #fff; }
+  .mode-reversing { background: #b06000; color: #fff; }
+  .mode-emergency { background: #c00000; color: #fff; }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .panel { background: #c0c0c0; padding: 0; }
+  .panel-title {
+    background: #000080;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    letter-spacing: 2px;
+    padding: 6px 15px;
+    text-transform: uppercase;
+  }
+  .panel-body { padding: 0; }
+
+  .io-row {
+    display: flex;
+    align-items: center;
+    height: 48px;
+    border-bottom: 1px solid #b0b0b0;
+  }
+  .io-row:last-child { border-bottom: none; }
+
+  .io-idx {
+    width: 62px;
+    flex-shrink: 0;
+    font-size: 15px;
+    color: #505050;
+    padding: 0 8px;
+    border-right: 1px solid #a0a0a0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: #b8b4ac;
+  }
+  .io-name {
+    flex: 1;
+    padding: 0 15px;
+    font-size: 19px;
+    font-weight: bold;
+    color: #000;
+    letter-spacing: 0.10px;
+  }
+  .io-name.spare { color: #909090; font-weight: normal; font-style: italic; }
+
+  .lamp {
+    width: 31px; height: 31px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 12px;
+    background: #666;
+    border: 2px solid #444;
+    box-shadow: inset 0 1px 2px #00000044;
+  }
+  .lamp.on {
+    background: radial-gradient(circle at 35% 35%, #ffee80, #c8a000);
+    border-color: #806000;
+    box-shadow: 0 0 10px 2px #ffc00066, inset 0 1px 2px #ffffff44;
+  }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 86px;
+    background: #1a1a6e;
+    display: flex;
+    z-index: 200;
+    border-top: 2px solid #4040a0;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0e0;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-right: 2px solid #3030a0;
+  }
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+  .nav-btn.errors-btn { color: #ff8080; }
+  .nav-btn.errors-btn.active { background: #800000; color: #fff; border-top: 2px solid #ff8080; }
+</style>
+</head>
+<body>
+
+<div id="header" class="raised">
+  <span class="title">AGV IO MONITOR</span>
+  <span id="mode-badge" class="mode-badge">MODE: —</span>
+  <span id="ts">—</span>
+</div>
+
+<div class="columns">
+  <div class="panel raised">
+    <div class="panel-title">DIGITAL INPUTS [ DI ]</div>
+    <div class="panel-body" id="di-panel"></div>
+  </div>
+  <div class="panel raised">
+    <div class="panel-title">DIGITAL OUTPUTS [ DO ]</div>
+    <div class="panel-body" id="do-panel"></div>
+  </div>
+</div>
+
+<nav id="nav-bar">
+  <a class="nav-btn" href="/">HOME</a>
+  <a class="nav-btn" href="/manual">MANUAL</a>
+  <a class="nav-btn active" href="/io">IO</a>
+  <a class="nav-btn" href="/params">PARAMS</a>
+  <a class="nav-btn errors-btn" href="/errors">ERRORS</a>
+</nav>
+
+<script>
+let diNames = [], doNames = [], numDi = 16, numDo = 16;
+let initialised = false;
+
+function buildPanel(panelId, count, names) {
+  const panel = document.getElementById(panelId);
+  panel.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const name  = names[i] || '[SPARE]';
+    const spare = name === '[SPARE]';
+    const row   = document.createElement('div');
+    row.className = 'io-row';
+    row.innerHTML =
+      `<span class="io-idx">${i}</span>` +
+      `<span class="io-name${spare ? ' spare' : ''}">${name}</span>` +
+      `<span class="lamp" id="${panelId}-${i}"></span>`;
+    panel.appendChild(row);
+  }
+}
+
+function setLamp(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'lamp' + (on ? ' on' : '');
+}
+
+function fetchIO() {
+  fetch('/api/io')
+    .then(r => r.json())
+    .then(d => {
+      if (!initialised) {
+        diNames = d.di_names; doNames = d.do_names;
+        numDi = d.num_di;     numDo  = d.num_do;
+        buildPanel('di-panel', numDi, diNames);
+        buildPanel('do-panel', numDo, doNames);
+        initialised = true;
+      }
+      d.di.forEach((v, i) => setLamp('di-panel-' + i, v));
+      d.do.forEach((v, i) => setLamp('do-panel-' + i, v));
+      document.getElementById('ts').textContent = new Date().toLocaleTimeString();
+    })
+    .catch(() => { document.getElementById('ts').textContent = 'NO CONN'; });
+}
+
+function fetchMode() {
+  fetch('/api/state')
+    .then(r => r.json())
+    .then(d => {
+      const mode  = d.agv && d.agv.mode;
+      const badge = document.getElementById('mode-badge');
+      badge.textContent = 'MODE: ' + (mode ? mode.toUpperCase() : '—');
+      badge.className   = 'mode-badge' + (mode ? ' mode-' + mode : '');
+    }).catch(() => {});
+}
+
+fetchIO();
+fetchMode();
+setInterval(fetchIO,   500);
+setInterval(fetchMode, 1000);
+</script>
+</body>
+</html>

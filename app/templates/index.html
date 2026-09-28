@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AGV Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #d4d0c8;
+    color: #000;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    padding: 15px;
+    padding-bottom: 101px; /* Space for nav bar */
+  }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 86px;
+    background: #1a1a6e; /* Dark blue */
+    display: flex;
+    z-index: 200;
+    border-top: 2px solid #4040a0;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0e0;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-right: 2px solid #3030a0;
+  } 
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+
+  /* ── Raised / sunken panel borders (classic HMI look) ── */
+  .raised {
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+  .sunken {
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  } 
+
+  /* ── Header bar ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: #000080;   /* Siemens-blue title bar */
+    color: #fff;
+    padding: 10px 19px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px; 
+  }
+  #header .title { flex: 1; }
+
+  /* Mode badge — large, prominent */
+  .mode-badge {
+    padding: 2px 28px;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    background: #c0c0c0; 
+    color: #000;
+  }
+  .mode-manual    { background: #0000c0; color: #fff; }
+  .mode-armed     { background: #c0a000; color: #000; }
+  .mode-running   { background: #008000; color: #fff; }
+  .mode-reversing { background: #b06000; color: #fff; }
+  .mode-emergency { background: #c00000; color: #fff; }
+
+  /* Emergency indicator lamp */
+  .emrg-lamp {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: bold; font-size: 19px; letter-spacing: 1px;
+    color: #606060;
+  }
+  .emrg-lamp .lamp { 
+    width: 35px; height: 35px; border-radius: 50%;
+    background: #606060;
+    border: 2px solid #404040;
+  }
+  .emrg-lamp.active { color: #000; }
+  .emrg-lamp.active .lamp {
+    background: #ff2020;
+    border-color: #800000; 
+    box-shadow: 0 0 12px 2px #ff000088;
+  }
+
+  /* Timestamp */
+  #ts { font-size: 18px; color: #c0c0c0; letter-spacing: 1px; }
+
+  /* ── Layout ── */
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  /* Panel */
+  .panel {
+    background: #c0c0c0;
+    padding: 0;
+  }
+  .panel-title {
+    background: #000080;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px; 
+    letter-spacing: 2px;
+    padding: 6px 15px;
+    text-transform: uppercase;
+  }
+  .panel-body { padding: 15px; }
+
+  /* Section label inside panel */
+  .section-label { 
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #404040;
+    text-transform: uppercase;
+    margin: 12px 0 6px 0;
+    border-bottom: 1px solid #a0a0a0;
+    padding-bottom: 2px; 
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ── 2-column flag grid ── */
+  .flag-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+  .flag-cell { 
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 36px;
+    background: #b8b8b0;
+    border: 1px solid #a8a8a0;
+  }
+  .flag-cell .bit-addr {
+    width: 62px; 
+    font-size: 14px;
+    background: #a8a4a0;
+    border-right: 1px solid #989490;
+  }
+  .flag-cell .bit-name {
+    font-size: 14px;
+  }
+
+  /* ── Bit row ── */
+  .bit-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 44px; 
+    border-bottom: 1px solid #b0b0b0;
+  }
+  .bit-row:last-child { border-bottom: none; }
+
+  .bit-addr {
+    width: 90px;
+    flex-shrink: 0;
+    font-size: 15px; 
+    color: #505050;
+    padding: 0 8px;
+    border-right: 1px solid #a0a0a0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: #b8b4ac;
+  }
+  .bit-name {
+    flex: 1;
+    padding: 0 12px;
+    font-weight: bold;
+    font-size: 19px; 
+    color: #000;
+    letter-spacing: 0.10px;
+  }
+
+  /* Indicator lamp */
+  .lamp {
+    width: 31px; height: 31px;
+    border-radius: 50%; 
+    flex-shrink: 0;
+    margin-right: 12px;
+    background: #888;
+    border: 2px solid #606060;
+    box-shadow: inset 0 1px 2px #00000044;
+  }
+  .lamp.on-green {
+    background: radial-gradient(circle at 35% 35%, #80ff80, #00a000); 
+    border-color: #005000;
+    box-shadow: 0 0 10px 1px #00cc0066, inset 0 1px 2px #ffffff44;
+  }
+  .lamp.on-red {
+    background: radial-gradient(circle at 35% 35%, #ff8080, #cc0000);
+    border-color: #800000;
+    box-shadow: 0 0 10px 1px #cc000066, inset 0 1px 2px #ffffff44;
+  }
+  .lamp.on-blue {
+    background: radial-gradient(circle at 35% 35%, #80c0ff, #0060c0);
+    border-color: #003080;
+    box-shadow: 0 0 10px 1px #0080ff66, inset 0 1px 2px #ffffff44;
+  }
+  .lamp.on-amber {
+    background: radial-gradient(circle at 35% 35%, #ffe080, #d08000);
+    border-color: #804000; 
+    box-shadow: 0 0 10px 1px #ffa00066, inset 0 1px 2px #ffffff44;
+  }
+
+  /* ── Sequence grid ── */
+  .seq-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-top: 2px; 
+  }
+  .seq-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #b8b4ac;
+    border: 1px solid #a0a0a0; 
+  }
+  .seq-cell .lamp { width: 17px; height: 17px; flex-shrink: 0; margin-right: 0; }
+  .seq-cell .seq-label { display: flex; flex-direction: column; line-height: 1.2; }
+  .seq-cell .seq-name { font-size: 14px; font-weight: bold; color: #1a1a1a; }
+  .seq-cell .seq-addr { font-size: 12px; color: #606060; }
+
+  /* ── Control bar ── */
+  #ctrl { 
+    background: #c0c0c0;
+    padding: 15px 19px;
+    display: flex;
+    align-items: center;
+    gap: 19px;
+    flex-wrap: wrap;
+  } 
+  #ctrl .ctrl-label { 
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #000;
+  } 
+
+  select {
+    background: #fff;
+    color: #000;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    padding: 6px 12px;
+    font-family: Consolas, 'Courier New', Courier, monospace; 
+    font-size: 19px;
+    font-weight: bold;
+  }
+
+  button {
+    padding: 8px 35px;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 1px; 
+    cursor: pointer;
+    /* raised border = clickable */
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+  button:active {
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff; 
+  }
+  #btn-set   { background: #00a000; color: #fff; }
+  #btn-clear { background: #c00000; color: #fff; }
+
+  /* ── Destination branch selector ── */
+  #branch-ctrl {
+    background: #c0c0c0;
+    padding: 15px 19px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  #branch-ctrl .ctrl-label { 
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #000;
+  }
+  .branch-btn { background: #d0d0d0; color: #000; padding: 8px 22px; }
+  .branch-btn.active { background: #0000c0; color: #fff; } 
+  #btn-branch-clear { background: #c00000; color: #fff; padding: 8px 22px; }
+  #branch-active-label {
+    font-size: 18px;
+    font-weight: bold;
+    color: #000080;
+    letter-spacing: 1px;
+    margin-left: 8px;
+  }
+  #branch-status {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000080;
+    letter-spacing: 1px;
+  }
+  #btn-remote { background: #000080; color: #fff; font-size: 18px; padding: 2px 19px; }
+  #wifi-indicator { 
+    display: flex; align-items: center; gap: 10px;
+    font-size: 18px; letter-spacing: 1px; color: #c0c0c0;
+  }
+  #wifi-bars { display: flex; align-items: flex-end; gap: 2px; height: 28px; }
+  #wifi-bars span {
+    display: inline-block; width: 8px; background: #606060;
+    border-radius: 1px;
+  } 
+  #wifi-bars span.lit { background: #80ff80; }
+
+  #ctrl-status {
+    font-size: 18px;
+    font-weight: bold;
+    color: #000080;
+    letter-spacing: 1px;
+  }
+
+  /* Condition indicators row */
+  #ctrl-conditions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-left: 15px;
+    padding-left: 24px;
+    border-left: 2px solid #a0a0a0;
+  }
+  .cond-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: bold; color: #606060;
+    letter-spacing: 0.10px;
+  }
+  .cond-item .lamp { width: 19px; height: 19px; } 
+
+  /* Seq request active label */
+  #seq-req-label {
+    color: #0000c0;
+    font-weight: bold;
+  }
+
+  /* Connection status strip */ 
+  #conn-strip {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+    align-items: center;
+    font-size: 15px;
+    color: #c0c0c0;
+    letter-spacing: 1px; 
+  }
+
+  /* System error lamp */
+  .syserr-lamp {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: bold; font-size: 19px; letter-spacing: 1px;
+    color: #606060;
+  }
+  .syserr-lamp .lamp { 
+    width: 35px; height: 35px; border-radius: 50%;
+    background: #606060;
+    border: 2px solid #404040;
+  }
+  .syserr-lamp.active { color: #c00000; }
+  .syserr-lamp.active .lamp {
+    background: #ff8800;
+    border-color: #804000; 
+    box-shadow: 0 0 12px 2px #ff880088;
+  }
+
+  /* ── Sequence status panel ── */
+  #seq-status-panel {
+    background: #c0c0c0;
+    padding: 0;
+    margin-top: 15px;
+  }
+  #seq-status-body {
+    padding: 15px 19px;
+    display: flex;
+    align-items: center;
+    gap: 39px;
+    flex-wrap: wrap;
+  }
+  .seq-status-field {
+    display: flex; align-items: center; gap: 15px; 
+  }
+  .seq-status-label {
+    font-size: 18px; font-weight: bold;
+    letter-spacing: 1px; text-transform: uppercase; color: #404040;
+  }
+  .seq-status-value {
+    font-size: 19px; font-weight: bold; color: #000080;
+    background: #fff; padding: 2px 15px; min-width: 235px;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080; 
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .seq-status-value.none { color: #a0a0a0; }
+  .seq-status-value.evt-completed { color: #007000; }
+  .seq-status-value.evt-timeout   { color: #b06000; }
+  .seq-status-value.evt-fault     { color: #c00000; }
+
+  /* ── Sensor panel ── */
+  #sensor-panel {
+    background: #c0c0c0;
+    padding: 0;
+    margin-top: 15px;
+  }
+  #sensor-body {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+  .sensor-field { 
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sensor-field-label {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase; 
+    color: #000;
+  }
+  #pos-display {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    letter-spacing: 1px;
+    color: #000080;
+    background: #fff;
+    padding: 2px 12px;
+    min-width: 104px;
+    text-align: right;
+    border-top:    2px solid #808080; 
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .sensor-lamp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: bold; 
+    color: #404040;
+    letter-spacing: 0.10px;
+  }
+  .sensor-lamp-item .lamp { width: 22px; height: 22px; }
+
+  /* ── Drive / motion panel (top) — PID + wheel RPM + linear velocity ── */
+  #drive-panel { background: #c0c0c0; padding: 0; margin-bottom: 15px; }
+  #drive-body {
+    padding: 8px 16px 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap; 
+  }
+  .drive-field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+    min-width: 88px;
+    background: #b8b4ac; 
+    border: 1px solid #a0a0a0;
+    padding: 6px 9px;
+  }
+  .drive-label {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase; 
+    color: #404040;
+  }
+  .drive-value {
+    font-size: 20px;
+    font-weight: bold;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    color: #004080;
+    background: #fff;
+    padding: 3px 10px;
+    min-width: 84px; 
+    text-align: right;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .drive-value.pid  { color: #600060; }
+  .drive-value.vel  { color: #006030; }
+  .drive-value.rfid { color: #000080; letter-spacing: 2px; text-align: center; }
+  .drive-unit { font-size: 11px; color: #606060; letter-spacing: 1px; } 
+  .nav-btn.errors-btn { color: #ff8080; }
+  .nav-btn.errors-btn.active { background: #800000; color: #fff; border-top: 2px solid #ff8080; }
+</style>
+</head>
+<body>
+
+<!-- Title bar -->
+<div id="header" class="raised">
+  <span class="title">AGV CONTROL MONITOR</span>
+  <span id="mode-badge" class="mode-badge">MODE: —</span>
+  <div id="emrg-lamp" class="emrg-lamp">
+    <div class="lamp"></div>EMERGENCY
+  </div>
+  <div id="syserr-lamp" class="syserr-lamp">
+    <div class="lamp"></div><span id="syserr-text">SYS ERROR</span>
+  </div>
+  <div id="wifi-indicator">
+    <div id="wifi-bars">
+      <span style="height:4px;"  id="wb0"></span>
+      <span style="height:7px;"  id="wb1"></span>
+      <span style="height:10px;" id="wb2"></span>
+      <span style="height:14px;" id="wb3"></span>
+    </div>
+    <span id="wifi-label">—</span>
+  </div>
+  <span id="ts" style="font-size: 9px;color:#c0c0c0;letter-spacing:1px;">—</span>
+</div>
+
+<!-- Magnetic sensor + drive/motion telemetry — top of page -->
+<div id="drive-panel" class="raised">
+  <div class="panel-title">MAGNETIC SENSOR &amp; DRIVE &nbsp;[ MGS1600 &middot; PID &middot; RPM &middot; VELOCITY ]</div>
+  <div id="sensor-body">
+    <div class="sensor-field">
+      <span class="sensor-field-label">Position:</span>
+      <span id="pos-display">—</span>
+      <span class="sensor-field-label" style="color:#606060;">mm</span>
+    </div>
+    <div style="width:2px;height:32px;background:#a0a0a0;"></div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-tape"></span>TAPE
+    </div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-lm"></span>LEFT MARKER
+    </div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-rm"></span>RIGHT MARKER
+    </div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-fail"></span>SENSOR FAIL
+    </div>
+    <div style="width:2px;height:32px;background:#a0a0a0;"></div>
+    <div class="sensor-field">
+      <span class="sensor-field-label">Speed:</span>
+      <span id="speed-mode-display" style="font-size: 16px;font-weight:bold;color:#000080;background:#fff;padding:2px 10px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">—</span>
+      <span id="target-speed-display" style="font-size: 16px;font-weight:bold;color:#000080;background:#fff;padding:2px 10px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">—</span>
+      <span class="sensor-field-label" style="color:#606060;">m/s</span>
+    </div>
+  </div>
+  <div id="drive-body">
+    <div class="drive-field">
+      <span class="drive-label">PID OUT</span>
+      <span class="drive-value pid" id="pid-output-display">—</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">L-RPM</span>
+      <span class="drive-value" id="left-rpm-display">—</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">R-RPM</span>
+      <span class="drive-value" id="right-rpm-display">—</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">V-LEFT</span>
+      <span class="drive-value vel" id="v-left-display">—</span>
+      <span class="drive-unit">m/s</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">V-RIGHT</span>
+      <span class="drive-value vel" id="v-right-display">—</span>
+      <span class="drive-unit">m/s</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">RFID</span>
+      <span class="drive-value rfid" id="rfid-tag-display">—</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">SENSOR</span>
+      <span class="drive-value" id="can-rate-display">—</span>
+      <span class="drive-unit">Hz</span>
+    </div>
+    <div class="drive-field">
+      <span class="drive-label">TRACK</span>
+      <span class="drive-value" id="track-follow-display">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Rear magnetic sensor — used only while REVERSING -->
+<div id="rear-sensor-panel" class="raised" style="background:#c0c0c0;margin-bottom:15px;">
+  <div class="panel-title">REAR MAGNETIC SENSOR &nbsp;[ REVERSE ]</div>
+  <div id="rear-sensor-body" style="padding:8px 16px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+    <div class="sensor-field">
+      <span class="sensor-field-label">Position:</span>
+      <span id="rear-pos-display" class="sensor-field-label" style="font-size:22px;font-weight:bold;font-family:Consolas,'Courier New',Courier,monospace;letter-spacing:1px;color:#000080;background:#fff;padding:2px 12px;min-width:104px;text-align:right;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">—</span>
+      <span class="sensor-field-label" style="color:#606060;">mm</span>
+    </div>
+    <div style="width:2px;height:32px;background:#a0a0a0;"></div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-rear-active"></span>
+      <span id="rear-active-label">SENSOR AKTIF</span>
+    </div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-rear-tape"></span>TAPE
+    </div>
+    <div class="sensor-lamp-item">
+      <span class="lamp" id="lamp-rear-fail"></span>SENSOR FAIL
+    </div>
+    <div style="width:2px;height:32px;background:#a0a0a0;"></div>
+    <div class="sensor-field">
+      <span class="sensor-field-label">Track:</span>
+      <span class="sensor-field-label" style="font-size:16px;font-weight:bold;color:#000080;background:#fff;padding:2px 10px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">RIGHT (fixed)</span>
+    </div>
+    <span id="rear-sensor-na" style="color:#a00000;font-weight:bold;letter-spacing:1px;display:none;">NOT FITTED — reverse falls back to FRONT sensor</span>
+  </div>
+</div>
+
+<!-- Destination branch selector -->
+<div id="branch-ctrl" class="raised">
+  <span class="ctrl-label">Titik Tujuan:</span>
+  <button class="branch-btn" data-branch="1">TITIK 1</button>
+  <button class="branch-btn" data-branch="2">TITIK 2</button>
+  <button class="branch-btn" data-branch="3">TITIK 3</button>
+  <button class="branch-btn" data-branch="4">TITIK 4</button>
+  <button id="btn-branch-clear">CLEAR</button>
+  <span id="branch-active-label">Aktif: —</span>
+  <span id="branch-status"></span>
+</div>
+
+
+<!-- Sequence engine status panel -->
+<div id="seq-status-panel" class="raised">
+  <div class="panel-title">SEQUENCE ENGINE STATUS</div>
+  <div id="seq-status-body">
+    <div class="seq-status-field">
+      <span class="seq-status-label">Active:</span>
+      <span id="seq-active" class="seq-status-value none">—</span>
+    </div>
+    <div style="width:2px;height:28px;background:#a0a0a0;"></div>
+    <div class="seq-status-field">
+      <span class="seq-status-label">Armed:</span>
+      <span id="seq-armed" class="seq-status-value none">—</span>
+    </div>
+    <div style="width:2px;height:28px;background:#a0a0a0;"></div>
+    <div class="seq-status-field">
+      <span class="seq-status-label">Cooldowns:</span>
+      <span id="seq-cooldowns" class="seq-status-value none">—</span>
+    </div>
+    <div style="width:2px;height:28px;background:#a0a0a0;"></div>
+    <div class="seq-status-field">
+      <span class="seq-status-label">Last Event:</span>
+      <span id="seq-event" class="seq-status-value none">—</span>
+    </div>
+  </div>
+</div>
+
+
+<script>
+function setLamp(el, on, cls) {
+  if (!el) return; 
+  el.className = 'lamp' + (on ? (' ' + cls) : ''); 
+}
+
+function fetchState() {
+  fetch('/api/state')
+    .then(r => r.json())
+    .then(d => {
+      const agv = d.agv; 
+
+      // Mode badge
+      const mode  = agv.mode || null; 
+      const badge = document.getElementById('mode-badge'); 
+      badge.textContent = 'MODE: ' + (mode ? mode.toUpperCase() : '—'); 
+      badge.className   = 'mode-badge' + (mode ? (' mode-' + mode) : ''); 
+
+      // Destination branch selector
+      const branch = agv.active_branch || null; 
+      document.getElementById('branch-active-label').textContent = 
+        'Aktif: ' + (branch ? ('TITIK ' + branch) : '—'); 
+      document.querySelectorAll('.branch-btn').forEach(btn => { 
+        btn.classList.toggle('active', btn.dataset.branch === branch); 
+      }); 
+      const branchLocked = (mode === 'running' || mode === 'emergency'); 
+      document.querySelectorAll('.branch-btn, #btn-branch-clear').forEach(btn => { 
+        btn.disabled = branchLocked; 
+        btn.style.opacity = branchLocked ? '0.4' : '1'; 
+      }); 
+
+      // Emergency lamp
+      const el = document.getElementById('emrg-lamp'); 
+      el.className = 'emrg-lamp' + (agv.emergency ? ' active' : ''); 
+
+      // System error lamp
+      const sel2 = document.getElementById('syserr-lamp'); 
+      sel2.className = 'syserr-lamp' + (agv.system_error ? ' active' : ''); 
+      document.getElementById('syserr-text').textContent = 
+        agv.system_error && agv.system_error_detail 
+          ? 'SYS ERROR: ' + agv.system_error_detail 
+          : 'SYS ERROR'; 
+
+      // Sensor panel
+      const sen = d.sensor; 
+      document.getElementById('pos-display').textContent = 
+        (sen && sen.left_mm !== null) ? sen.left_mm : '—'; 
+      setLamp(document.getElementById('lamp-tape'), sen && sen.tape_detected,  'on-green'); 
+      setLamp(document.getElementById('lamp-lm'),   sen && sen.left_marker,    'on-amber'); 
+      setLamp(document.getElementById('lamp-rm'),   sen && sen.right_marker,   'on-amber'); 
+      setLamp(document.getElementById('lamp-fail'), sen && sen.sensor_failure, 'on-red');
+
+      // Rear sensor panel (REVERSE only) — always follows right_mm, no track
+      // selector to show (fixed RIGHT, labeled statically in the HTML).
+      // "active" means a CAN frame landed recently (age <= CAN_TIMEOUT), not
+      // just "we saw one once" — so TAPE/FAIL lamps are only trusted (and lit)
+      // while active; otherwise they'd show a frozen last-known value forever
+      // if the sensor died.
+      const rsen = d.rear_sensor;
+      const rsenNa = document.getElementById('rear-sensor-na');
+      const rsenActiveLamp  = document.getElementById('lamp-rear-active');
+      const rsenActiveLabel = document.getElementById('rear-active-label');
+      if (rsen && rsen.enabled) {
+        rsenNa.style.display = 'none';
+        setLamp(rsenActiveLamp, rsen.active, 'on-green');
+        rsenActiveLabel.textContent = rsen.active
+          ? 'SENSOR AKTIF'
+          : 'SENSOR TIDAK AKTIF' + (rsen.age_s != null ? ` (${rsen.age_s.toFixed(1)}s lalu)` : ' (belum ada data)');
+        document.getElementById('rear-pos-display').textContent =
+          (rsen.active && rsen.right_mm !== null) ? rsen.right_mm : '—';
+        setLamp(document.getElementById('lamp-rear-tape'), rsen.active && rsen.tape_detected,  'on-green');
+        setLamp(document.getElementById('lamp-rear-fail'), rsen.active && rsen.sensor_failure, 'on-red');
+      } else {
+        rsenNa.style.display = 'inline';
+        setLamp(rsenActiveLamp, false, 'on-green');
+        rsenActiveLabel.textContent = 'SENSOR AKTIF';
+        document.getElementById('rear-pos-display').textContent = '—';
+        setLamp(document.getElementById('lamp-rear-tape'), false, 'on-green');
+        setLamp(document.getElementById('lamp-rear-fail'), false, 'on-red');
+      }
+
+      // Motion telemetry
+      document.getElementById('speed-mode-display').textContent  = (sen && sen.speed_mode)   || '—'; 
+      document.getElementById('target-speed-display').textContent = (sen && sen.target_speed != null) ? sen.target_speed.toFixed(3) : '—'; 
+      document.getElementById('pid-output-display').textContent  = (sen && sen.pid_output  != null) ? (sen.pid_output > 0 ? '+' : '') + sen.pid_output.toFixed(1) : '—'; 
+      document.getElementById('left-rpm-display').textContent    = (sen && sen.left_rpm    != null) ? sen.left_rpm.toFixed(1)   : '—'; 
+      document.getElementById('right-rpm-display').textContent   = (sen && sen.right_rpm   != null) ? sen.right_rpm.toFixed(1)  : '—'; 
+      document.getElementById('v-left-display').textContent      = (sen && sen.v_left      != null) ? sen.v_left.toFixed(3)    : '—'; 
+      document.getElementById('v-right-display').textContent     = (sen && sen.v_right     != null) ? sen.v_right.toFixed(3)   : '—'; 
+
+      // Sequence engine status
+      const seqs = d.sequences || {}; 
+      const seqActive = seqs.active || null; 
+      const seqArmed  = seqs.armed  || null; 
+      const seqCd     = seqs.cooldowns || {}; 
+      const cdKeys    = Object.keys(seqCd); 
+
+      const activeEl = document.getElementById('seq-active'); 
+      activeEl.textContent = seqActive || '—'; 
+      activeEl.className = 'seq-status-value' + (seqActive ? '' : ' none'); 
+
+      const armedEl = document.getElementById('seq-armed'); 
+      armedEl.textContent = seqArmed || '—'; 
+      armedEl.className = 'seq-status-value' + (seqArmed ? '' : ' none'); 
+
+      const cdEl = document.getElementById('seq-cooldowns'); 
+      if (cdKeys.length === 0) { 
+        cdEl.textContent = '—'; 
+        cdEl.className = 'seq-status-value none'; 
+      } else { 
+        cdEl.textContent = cdKeys.map(k => `${k}: ${seqCd[k].toFixed(1)}s`).join(' | '); 
+        cdEl.className = 'seq-status-value'; 
+      } 
+
+      // Last notable sequence event (timeout / completion)
+      const ev   = seqs.last_event || null; 
+      const evEl = document.getElementById('seq-event'); 
+      if (!ev) { 
+        evEl.textContent = '—'; 
+        evEl.className = 'seq-status-value none'; 
+      } else { 
+        const age = ev.age_s < 60 
+                  ? `${ev.age_s.toFixed(0)}s ago` 
+                  : `${Math.floor(ev.age_s / 60)}m ago`; 
+        evEl.textContent = `${ev.name}: ${ev.message} (${age})`; 
+        evEl.className = 'seq-status-value evt-' + ev.kind; 
+      } 
+
+      // RFID last tag
+      const rfidEl = document.getElementById('rfid-tag-display'); 
+      rfidEl.textContent = agv.latest_rfid_tag || '—'; 
+
+      // Magnetic sensor frame rate — this is the effective PID loop rate, since
+      // auto_mode only advances when a sensor frame lands.
+      const canDrv  = (d.drivers || []).find(x => x.name === 'CAN MGS1600'); 
+      const rateEl  = document.getElementById('can-rate-display'); 
+      rateEl.textContent = canDrv ? canDrv.rate_hz.toFixed(1) : '—'; 
+      rateEl.style.color = !canDrv || canDrv.rate_hz === 0 ? '#a00000' : '#000080'; 
+
+      // Fork track selection — highlight when RIGHT (non-default)
+      const trackEl = document.getElementById('track-follow-display'); 
+      const track   = agv.track_follow || '—'; 
+      trackEl.textContent = track.toUpperCase(); 
+      trackEl.style.color = track === 'right' ? '#a05000' : '#000080'; 
+
+      document.getElementById('ts').textContent = new Date().toLocaleTimeString(); 
+    })
+    .catch(() => {
+      document.getElementById('ts').textContent = 'NO CONN';
+    });
+}
+
+function setBranch(branch) {
+  fetch('/api/branch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ branch: branch })
+  })
+  .then(r => r.json())
+  .then(d => {
+    const st = document.getElementById('branch-status');
+    st.style.color = d.ok ? '#006000' : '#c00000'; 
+    st.textContent = d.ok
+      ? (d.branch !== null ? `→ TITIK ${d.branch}` : 'CLEARED')
+      : (d.error || 'ERROR');
+    setTimeout(() => { st.textContent = ''; }, 4000);
+  });
+});
+
+function fetchWifi() {
+  fetch('/api/wifi')
+    .then(r => r.json())
+    .then(d => {
+      const sig   = d.signal;  // 0–100 or null
+      const label = document.getElementById('wifi-label');
+      const bars  = [0,1,2,3].map(i => document.getElementById('wb'+i));
+      if (sig === null) {
+        label.textContent = 'NO WIFI';
+        bars.forEach(b => b.classList.remove('lit'));
+        return;
+      }
+      label.textContent = sig + '% ' + (d.ssid || '');
+      // Light bars: 0–24→1 bar, 25–49→2, 50–74→3, 75–100→4
+      const lit = sig < 25 ? 1 : sig < 50 ? 2 : sig < 75 ? 3 : 4;
+      bars.forEach((b, i) => b.classList.toggle('lit', i < lit));
+    })
+    .catch(() => {
+      document.getElementById('wifi-label').textContent = '—';
+    });
+}
+
+fetchState();
+fetchWifi();
+setInterval(fetchState, 500);
+setInterval(fetchWifi, 5000);
+</script> 
+
+<nav id="nav-bar">
+  <a class="nav-btn active" href="/">HOME</a>
+  <a class="nav-btn" href="/manual">MANUAL</a>
+  <a class="nav-btn" href="/io">IO</a>
+  <a class="nav-btn" href="/params">PARAMS</a>
+  <a class="nav-btn errors-btn" href="/errors">ERRORS</a>
+</nav>
+</body>
+</html>

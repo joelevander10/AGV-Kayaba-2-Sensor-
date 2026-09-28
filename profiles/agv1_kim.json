@@ -1,0 +1,320 @@
+{
+  "_agv_id": "agv1_kim",
+  "_description": "AGV1 KIM2A — primary unit",
+
+  "networking": {
+    "LOCAL_IP": "192.168.2.100",
+    "DIO_IP": "192.168.1.31",
+    "AO_IP": "192.168.1.30",
+    "MODBUS_PORT": 502,
+    "DEVICE_ID": 1,
+    "RFID_IP": "192.168.5.10",
+    "RFID_PORT": 2022
+  },
+
+  "io_mapping": {
+    "DI_FLIPPED": 1,
+    "DI_BASE": 0,
+    "DO_BASE": 0,
+    "NUM_DI": 16,
+    "NUM_DO": 16,
+    "AO_BASE": 4096,
+    "NUM_AO": 2,
+    "DI_EMERGENCY": 3,
+    "DI_FWD": 4,
+    "DI_REV": 5,
+    "DI_LEFT": 6,
+    "DI_RIGHT": 7,
+    "DI_MODE_SWITCH": 2,
+    "DI_START": 0,
+    "DI_RESET": 1
+  },
+  "motor_channels": {
+    "_comment": "DO and AO channel indices for each motor drive",
+    "left": {
+      "do_fwd": 0,
+      "do_rev": 1,
+      "do_brake": 2,
+      "do_alarm": 3,
+      "ao_speed": 0
+    },
+    "right": {
+      "do_fwd": 4,
+      "do_rev": 5,
+      "do_brake": 6,
+      "do_alarm": 7,
+      "ao_speed": 1
+    }
+  },
+  "hardware": {
+    "V_RANGE": 10.0,
+    "DAC_RES": 4095,
+    "_comment_cal": "Motor speed calibration: rpm = RPM_PER_VOLT * volts + RPM_VOLT_OFFSET",
+    "RPM_PER_VOLT": 646.59,
+    "RPM_VOLT_OFFSET": -101.2
+  },
+  "kinematics": {
+    "WHEEL_DIAMETER": 0.18,
+    "GEAR_RATIO": 30
+  },
+  "speeds": {
+    "MANUAL_TARGET_HIGH_SPEED": 0.4,
+    "MANUAL_TARGET_SLOW_SPEED": 0.2,
+    "AUTO_TARGET_HIGH_SPEED": 0.4,
+    "AUTO_TARGET_SLOW_SPEED": 0.2,
+    "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
+    "ACCEL_RATE": 0.8
+  },
+  "pid_tuning": {
+    "_comment_high": "HIGH speed gains — tuned for 0.4m/s with loaded trolley",
+    "KP": 1.4,
+    "TD": 0.12,
+    "N": 20,
+    "_comment_slow": "SLOW / EXTRA_SLOW gains — tuned for 0.25m/s, proven stable",
+    "KP_SLOW": 2.2,
+    "TD_SLOW": 0.14,
+    "N_SLOW": 12,
+    "_comment_shared": "Shared — integral and timing constants",
+    "TI": 20,
+    "TI_DEADBAND": 25,
+    "TI_MAX": 500,
+    "DT": 0.01,
+    "_comment_sr": "Speed reduction coefficients — split by speed mode",
+    "V_RED_COEF": 4,
+    "V_RED_COEF_SLOW": 2,
+    "OUTPUT_CLAMP_RPM": 800,
+    "SR_ALPHA": 0.15,
+    "SR_CAP": 0.55
+  },
+  "can_sensor": {
+    "SENSOR_COB_ID": 390,
+    "FLAG_TAPE_DETECT": 2,
+    "FLAG_LEFT_MARKER": 4,
+    "FLAG_RIGHT_MARKER": 8,
+    "FLAG_SENSOR_FAIL": 128,
+    "CAN_TIMEOUT": 0.5,
+    "CAN_NODE_ID": 6,
+    "_comment_limits": "Reject |left_mm|>SENSOR_MAX_MM; clamp per-cycle jumps > SENSOR_MAX_STEP_MM",
+    "SENSOR_MAX_MM": 100.0,
+    "SENSOR_MAX_STEP_MM": 40.0
+  },
+  "rfid": {
+    "RFID_INIT_CMD_HEX": "CFFF0070002415",
+    "SEQUENCE_STOP_DELAY": 4.0
+  },
+  "feedforward": {
+    "_comment": "Curvature feedforward for corners (disabled until tuned for this unit's track).",
+    "ENABLED": 0,
+    "TRACK_WIDTH_M": 0.46,
+    "CURVE_RADIUS_M": 1.5,
+    "CURVE_DIRECTION": "left",
+    "CURVE_SPEED_MODES": [
+      "SLOW"
+    ],
+    "FF_ALPHA": 0.15
+  },
+  "sequences": [
+    {
+      "_comment": "Slow down zone — RFID-only trigger",
+      "name": "speed_zone_slow",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0014"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "SLOW"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Resume high speed — RFID-only trigger",
+      "name": "speed_zone_high",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0016"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "HIGH"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Timed checkpoint stop — RFID-only trigger",
+      "name": "checkpoint_stop",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "000C"
+      },
+      "actions": [
+        {
+          "type": "sequence_stop",
+          "duration": 4.0
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Cabang ke TITIK 1 — hanya bereaksi kalau active_branch == '1' (dipilih dari HMI sebelum START). Tag placeholder: ganti 00AA dengan hex tag sebenarnya. Isi 'actions' sesuai aksi fisik jalur ini (mis. set_track) setelah ditentukan.",
+      "name": "branch_titik_1",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AA"
+      },
+      "requires_branch": "1",
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Cabang ke TITIK 2 — hanya bereaksi kalau active_branch == '2'. Tag placeholder: ganti 00AB.",
+      "name": "branch_titik_2",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AB"
+      },
+      "requires_branch": "2",
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Fork selalu ambil track kanan begitu tag AE kebaca — TIDAK digating active_branch (selalu aktif, beda dari branch_titik_1/2). Tag placeholder: ganti 00AE dengan hex tag sebenarnya.",
+      "name": "fork_always_right",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AE"
+      },
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Merge/reset — tag BB, selalu jalan (gak digating requires_branch), melepas active_branch balik ke null. Tag placeholder: ganti 00BB.",
+      "name": "branch_merge_reset",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00BB"
+      },
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "left"
+        },
+        {
+          "type": "clear_branch"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Dead-end siding menuju C1 — tag \"1\" trigger berhenti, jeda 2 detik, baru mulai mundur (PID reverse-follow). Digating oleh ignore_rfid_1 (di-set oleh C1) supaya gak re-trigger tiap lewat. Tag placeholder: ganti 0001 dengan hex tag sebenarnya.",
+      "name": "reverse_at_1",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0001"
+      },
+      "skip_if_flag": "ignore_rfid_1",
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "wait_seconds",
+          "duration": 2.0
+        },
+        {
+          "type": "start_reverse"
+        }
+      ],
+      "cooldown_s": 3.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), tunggu 5 detik, lalu otomatis lanjut jalan (resume SLOW). Sengaja TANPA requires_mode — tag ini harus tetep kena baik pas RUNNING (approach normal) maupun REVERSING (ujung mundur). Tag placeholder: ganti 00C1.",
+      "name": "stop_at_c1",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00C1"
+      },
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "stop_reverse"
+        },
+        {
+          "type": "set_ignore_1"
+        },
+        {
+          "type": "wait_seconds",
+          "duration": 5.0
+        },
+        {
+          "type": "resume",
+          "speed": "SLOW"
+        }
+      ],
+      "cooldown_s": 3.0
+    },
+    {
+      "_comment": "Tag CE — melepas ignore_rfid_1 (re-arm tag \"1\"). Posisinya di antara BB (merge ke main line) dan tag \"1\" di siding — kelewatin baik pas RUNNING (masuk siding) maupun REVERSING (keluar dari C1). Sengaja TANPA requires_mode biar kena di kedua kondisi. Tag placeholder: ganti 00CE dengan hex tag sebenarnya.",
+      "name": "clear_ignore_at_cr",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00CE"
+      },
+      "actions": [
+        {
+          "type": "clear_ignore_1"
+        }
+      ],
+      "cooldown_s": 3.0
+    }
+  ],
+  "features": {
+    "_comment": "RFID split into NAV (corner speed zones) -> SEQ (checkpoints/branch forks). Hierarchy: disabling NAV disables SEQ.",
+    "DIO_ENABLED": 1,
+    "CAN_ENABLED": 1,
+    "NAV_ENABLED": 1,
+    "SEQ_ENABLED": 1
+  },
+  "watchdog": {
+    "_comment": "Safety watchdog timeouts for hardware driver health checks",
+    "DI_TIMEOUT_S": 1.0,
+    "CAN_TIMEOUT_S": 1.0,
+    "RFID_TIMEOUT_S": 5.0
+  }
+}

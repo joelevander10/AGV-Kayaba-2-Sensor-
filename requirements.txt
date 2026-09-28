@@ -1,0 +1,15 @@
+# AGV KIM2A Controller — Python dependencies
+#
+# Install: pip install -r requirements.txt
+#
+# Notes:
+#   pymodbus  ≥3.0  — v3 introduced AsyncModbusTcpClient (used throughout)
+#   python-can       — requires CANable2 USB adapter + slcan kernel module on Ubuntu
+#   pymcprotocol     — Mitsubishi SLMP / MC Protocol (Type3E binary)
+
+pymodbus>=3.6.0
+pymcprotocol>=0.3.0
+python-can>=4.3.0
+pyserial>=3.5.0
+Flask>=3.0.0
+matplotlib>=3.8.0

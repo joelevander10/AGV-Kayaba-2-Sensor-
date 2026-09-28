@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGV — Parameters</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #d4d0c8;
+    color: #000;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    padding: 15px;
+    padding-bottom: 101px;
+  }
+
+  .raised {
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: #000080;
+    color: #fff;
+    padding: 10px 19px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  #header .title { flex: 1; }
+  #ts { font-size: 18px; color: #c0c0c0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .section {
+    background: #c0c0c0;
+    padding: 0;
+    margin-bottom: 0;
+  }
+  .section-title {
+    background: #000080;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    letter-spacing: 2px;
+    padding: 6px 15px;
+    text-transform: uppercase;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  tr { border-bottom: 1px solid #b0b0b0; }
+  tr:last-child { border-bottom: none; }
+  tr:nth-child(even) { background: #b8b8b0; }
+
+  td {
+    padding: 6px 15px;
+    font-size: 19px;
+    vertical-align: middle;
+  }
+  td.param-name {
+    color: #303060;
+    font-weight: bold;
+    width: 55%;
+    letter-spacing: 0.6px;
+  }
+  td.param-val {
+    color: #000080;
+    font-weight: bold;
+    text-align: right;
+  }
+  td.param-val.bool-true  { color: #006000; }
+  td.param-val.bool-false { color: #a00000; }
+
+  /* ── Controller settings (editable) ── */
+  #settings-card { margin-bottom: 15px; }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #b0b0b0;
+  }
+  .setting-row:last-of-type { border-bottom: none; }
+  .setting-name {
+    flex: 1;
+    color: #303060;
+    font-weight: bold;
+    font-size: 19px;
+    letter-spacing: 0.6px;
+  }
+  .toggle {
+    position: relative;
+    width: 116px; height: 38px;
+    flex-shrink: 0;
+    background: #a00000;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: #fff;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transition: background 0.1s;
+  }
+  .toggle.on { background: #006000; }
+  .toggle::before {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    content: "OFF";
+    right: 13px;
+  }
+  .toggle.on::before { content: "ON"; left: 15px; right: auto; }
+  .toggle-knob {
+    position: absolute;
+    top: 2px; bottom: 2px;
+    left: 2px;
+    width: 46px;
+    background: #c0c0c0;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #404040;
+    border-bottom: 2px solid #404040;
+    transition: left 0.1s;
+  }
+  .toggle.on .toggle-knob { left: calc(100% - 48px); }
+  #settings-card.locked .toggle { opacity: 0.5; cursor: not-allowed; }
+  .toggle.dep-disabled { opacity: 0.4; cursor: not-allowed; }
+  .dep-note { font-weight: normal; font-size: 13px; color: #707070; letter-spacing: 0; }
+  #settings-msg {
+    padding: 8px 15px;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    border-top: 1px solid #b0b0b0;
+    min-height: 18px;
+  }
+  #settings-msg.info { color: #303060; }
+  #settings-msg.warn { color: #a00000; font-weight: bold; }
+  #settings-msg.ok   { color: #006000; font-weight: bold; }
+
+  /* ── Live tuning (editable speeds / PID / feedforward) ── */
+  #tuning-card { margin-bottom: 15px; }
+  .tune-group {
+    padding: 10px 15px;
+    border-bottom: 1px solid #b0b0b0;
+  }
+  .tune-group-title {
+    color: #303060;
+    font-weight: bold;
+    font-size: 17px;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .tune-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+  .tune-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .tune-field label {
+    font-size: 13px;
+    color: #505060;
+    letter-spacing: 0.4px;
+  }
+  /* Inset bevel — the inverse of .raised, so inputs read as sunken wells. */
+  .tune-field input {
+    width: 108px;
+    height: 38px;
+    padding: 0 8px;
+    background: #fff;
+    color: #000080;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    text-align: right;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .tune-field input.dirty { background: #ffffc0; color: #a05000; }
+  .tune-actions {
+    display: flex;
+    gap: 10px;
+    padding: 10px 15px;
+    border-bottom: 1px solid #b0b0b0;
+  }
+  .tune-btn {
+    height: 42px;
+    padding: 0 22px;
+    font-family: inherit; font-weight: bold; font-size: 16px; letter-spacing: 1px;
+    color: #fff; cursor: pointer; background: #505060;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+  .tune-btn.apply { background: #006000; }
+  .tune-btn.revert { background: #806000; }
+  .tune-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #tuning-card.locked .tune-field input,
+  #tuning-card.locked .tune-btn { opacity: 0.5; cursor: not-allowed; }
+  #tuning-msg {
+    padding: 8px 15px;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    min-height: 18px;
+  }
+  #tuning-msg.info { color: #303060; }
+  #tuning-msg.warn { color: #a00000; font-weight: bold; }
+  #tuning-msg.ok   { color: #006000; font-weight: bold; }
+
+  /* ── Wheel-speed calibration ── */
+  #calib-card { margin-bottom: 15px; }
+  .wheel-sel { display: flex; gap: 8px; flex-shrink: 0; }
+  .cal-btn {
+    width: 92px; height: 38px;
+    font-family: inherit; font-weight: bold; font-size: 15px; letter-spacing: 1px;
+    color: #fff; cursor: pointer; background: #505060;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+  .cal-btn.wheel-opt.sel { background: #000080; }
+  .cal-btn.start { background: #006000; }
+  .cal-btn.stop  { background: #a00000; }
+  .cal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #calib-msg {
+    padding: 8px 15px; font-size: 15px; letter-spacing: 0.5px;
+    border-top: 1px solid #b0b0b0; min-height: 18px;
+  }
+  #calib-msg.info { color: #303060; }
+  #calib-msg.warn { color: #a00000; font-weight: bold; }
+  #calib-msg.ok   { color: #006000; font-weight: bold; }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 86px;
+    background: #1a1a6e;
+    display: flex;
+    z-index: 200;
+    border-top: 2px solid #4040a0;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0e0;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-right: 2px solid #3030a0;
+  }
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+  .nav-btn.errors-btn { color: #ff8080; }
+  .nav-btn.errors-btn.active { background: #800000; color: #fff; border-top: 2px solid #ff8080; }
+</style>
+</head>
+<body>
+
+<div id="header" class="raised">
+  <span class="title">PARAMETER LIST</span>
+  <span id="ts">—</span>
+</div>
+
+<div id="settings-card" class="section raised">
+  <div class="section-title">CONTROLLER SETTINGS</div>
+  <div class="setting-row">
+    <span class="setting-name">CAN SENSOR (MGS1600) <span class="dep-note">(disable when disconnected)</span></span>
+    <button class="toggle" id="toggle-CAN_ENABLED" data-flag="CAN_ENABLED">
+      <span class="toggle-knob"></span>
+    </button>
+  </div>
+  <div class="setting-row">
+    <span class="setting-name">RFID NAVIGATION <span class="dep-note">(corner speed zones)</span></span>
+    <button class="toggle" id="toggle-NAV_ENABLED" data-flag="NAV_ENABLED">
+      <span class="toggle-knob"></span>
+    </button>
+  </div>
+  <div class="setting-row">
+    <span class="setting-name">RFID SEQUENCE <span class="dep-note">(needs NAV)</span></span>
+    <button class="toggle" id="toggle-SEQ_ENABLED" data-flag="SEQ_ENABLED">
+      <span class="toggle-knob"></span>
+    </button>
+  </div>
+  <div id="settings-msg" class="info">—</div>
+</div>
+
+<div id="tuning-card" class="section raised">
+  <div class="section-title">LIVE TUNING &nbsp;<span class="dep-note">(not saved — resets to profile on restart)</span></div>
+  <div id="tuning-groups"></div>
+  <div class="tune-actions">
+    <button class="tune-btn apply"  id="tune-apply">APPLY</button>
+    <button class="tune-btn revert" id="tune-revert">RESET TO PROFILE</button>
+  </div>
+  <div id="tuning-msg" class="info">—</div>
+</div>
+
+<div class="grid" id="params-grid"></div>
+
+<div id="calib-card" class="section raised">
+  <div class="section-title">WHEEL SPEED CALIBRATION</div>
+  <div class="setting-row">
+    <span class="setting-name">ENCODER WHEEL
+      <span class="dep-note">(where the encoder is mounted)</span></span>
+    <div class="wheel-sel">
+      <button class="cal-btn wheel-opt" id="wheel-right" data-wheel="right">RIGHT</button>
+      <button class="cal-btn wheel-opt" id="wheel-left"  data-wheel="left">LEFT</button>
+    </div>
+  </div>
+  <div class="setting-row">
+    <span class="setting-name">RAMP CONTROL
+      <span class="dep-note">(0→0.5 m/s, +0.02 every 2s, ~13 m straight — start from ARMED)</span></span>
+    <div class="wheel-sel">
+      <button class="cal-btn start" id="calib-start" disabled>START</button>
+      <button class="cal-btn stop"  id="calib-stop"  disabled>STOP</button>
+    </div>
+  </div>
+  <table><tbody>
+    <tr><td class="param-name">STATUS</td><td class="param-val" id="calib-state">—</td></tr>
+    <tr><td class="param-name">COMMANDED</td><td class="param-val" id="calib-cmd">— m/s</td></tr>
+    <tr><td class="param-name">ENCODER ACTUAL</td><td class="param-val" id="calib-act">— m/s</td></tr>
+    <tr><td class="param-name">ENCODER RPM</td><td class="param-val" id="calib-rpm">—</td></tr>
+    <tr><td class="param-name">ENCODER LINK</td><td class="param-val" id="calib-link">—</td></tr>
+    <tr><td class="param-name">ELAPSED</td><td class="param-val" id="calib-elapsed">— s</td></tr>
+    <tr><td class="param-name">LAST CSV</td><td class="param-val" id="calib-csv" style="font-size:13px;">—</td></tr>
+  </tbody></table>
+  <div id="calib-msg" class="info">—</div>
+</div>
+
+<nav id="nav-bar">
+  <a class="nav-btn" href="/">HOME</a>
+  <a class="nav-btn" href="/manual">MANUAL</a>
+  <a class="nav-btn" href="/io">IO</a>
+  <a class="nav-btn active" href="/params">PARAMS</a>
+  <a class="nav-btn errors-btn" href="/errors">ERRORS</a>
+</nav>
+
+<script>
+function renderValue(v) {
+  if (typeof v === 'boolean') {
+    return `<td class="param-val ${v ? 'bool-true' : 'bool-false'}">${v ? 'YES' : 'NO'}</td>`;
+  }
+  return `<td class="param-val">${v}</td>`;
+}
+
+// Re-callable: the read-only tables below must be refreshed after a live edit,
+// otherwise they keep showing the values from page load.
+function loadParams() {
+  return fetch('/api/params')
+  .then(r => r.json())
+  .then(data => {
+    const grid = document.getElementById('params-grid');
+    grid.innerHTML = '';
+    // Render Speeds and PID sections first, then everything else
+    const PRIORITY = ['Speeds', 'PID Tuning'];
+    const ordered = [
+      ...PRIORITY.filter(k => k in data),
+      ...Object.keys(data).filter(k => !PRIORITY.includes(k)),
+    ];
+    for (const section of ordered) {
+      const entries = data[section];
+      const div = document.createElement('div');
+      div.className = 'section raised';
+      let rows = '';
+      for (const [key, val] of Object.entries(entries)) {
+        rows += `<tr><td class="param-name">${key}</td>${renderValue(val)}</tr>`;
+      }
+      div.innerHTML =
+        `<div class="section-title">${section}</div>` +
+        `<table><tbody>${rows}</tbody></table>`;
+      grid.appendChild(div);
+    }
+    if (data['Features']) {
+      setToggle('CAN_ENABLED',  data['Features']['CAN Enabled']);
+      setToggle('NAV_ENABLED',  data['Features']['RFID Navigation']);
+      setToggle('SEQ_ENABLED',  data['Features']['RFID Sequence']);
+      applyDeps();
+    }
+    document.getElementById('ts').textContent = new Date().toLocaleTimeString();
+  })
+  .catch(() => {
+    document.getElementById('params-grid').textContent = 'Failed to load parameters.';
+  });
+}
+loadParams();
+
+// ── Editable controller settings ──────────────────────────────────────────
+const _card = document.getElementById('settings-card');
+const _msg  = document.getElementById('settings-msg');
+let _locked = null;
+
+function _setMsg(text, cls) { _msg.textContent = text; _msg.className = cls; }
+
+function setToggle(flag, on) {
+  const btn = document.getElementById('toggle-' + flag);
+  if (btn) btn.classList.toggle('on', !!on);
+}
+
+function isOn(flag) {
+  const btn = document.getElementById('toggle-' + flag);
+  return btn && btn.classList.contains('on');
+}
+
+// Dependency hierarchy: NAV -> SEQ. A child can't be enabled while its
+// parent is off, so grey out (and block) children whose parent is off.
+function applyDeps() {
+  const nav = isOn('NAV_ENABLED');
+  const seq = isOn('SEQ_ENABLED');
+  document.getElementById('toggle-SEQ_ENABLED').classList.toggle('dep-disabled', !nav);
+}
+
+function applyResponse(d) {
+  setToggle('CAN_ENABLED',  d.CAN_ENABLED);
+  setToggle('NAV_ENABLED',  d.NAV_ENABLED);
+  setToggle('SEQ_ENABLED',  d.SEQ_ENABLED);
+  applyDeps();
+}
+
+['CAN_ENABLED', 'NAV_ENABLED', 'SEQ_ENABLED'].forEach(flag => {
+  document.getElementById('toggle-' + flag).addEventListener('click', () => {
+    if (_card.classList.contains('locked')) return;
+    const btn = document.getElementById('toggle-' + flag);
+    if (btn.classList.contains('dep-disabled')) {
+      _setMsg('Enable its parent feature first (NAV → SEQ).', 'warn');
+      return;
+    }
+    const newVal = !btn.classList.contains('on');
+    _setMsg('Saving…', 'info');
+    fetch('/api/params/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [flag]: newVal })
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { _setMsg(d.error || 'Failed to apply.', 'warn'); return; }
+        applyResponse(d);
+        _setMsg('Applied. Resets to profile default on restart.', 'ok');
+      })
+      .catch(() => _setMsg('Connection error — not saved.', 'warn'));
+  });
+});
+
+// ── Live tuning (speeds / PID gains / feedforward) ────────────────────────
+// Editing is gated server-side to idle ARMED / idle MANUAL. AUTO values are read
+// when auto_mode is rebuilt at the next START; manual speeds apply immediately.
+const TUNE_LAYOUT = [
+  ['AUTO SPEEDS & RAMPS', [
+    ['AUTO_TARGET_HIGH_SPEED',     'High (m/s)'],
+    ['AUTO_TARGET_SLOW_SPEED',     'Slow (m/s)'],
+    ['AUTO_TARGET_APPROACH_SPEED', 'Approach (m/s)'],
+    ['ACCEL_RATE',                 'Accel (m/s²)'],
+    ['DECEL_RATE',                 'Decel (m/s²)'],
+    ['APPROACH_DECEL_RATE',        'Appr Decel (m/s²)'],
+  ]],
+  ['MANUAL SPEEDS', [
+    ['MANUAL_TARGET_HIGH_SPEED', 'High (m/s)'],
+    ['MANUAL_TARGET_SLOW_SPEED', 'Slow (m/s)'],
+  ]],
+  ['PID GAINS — HIGH', [
+    ['KP', 'KP'], ['TD', 'TD'], ['N', 'N'], ['V_RED_COEF', 'V-Red'],
+    ['OUTPUT_CLAMP_RPM', 'Clamp (RPM)'],
+  ]],
+  ['PID GAINS — SLOW', [
+    ['KP_SLOW', 'KP'], ['TD_SLOW', 'TD'], ['N_SLOW', 'N'],
+    ['V_RED_COEF_SLOW', 'V-Red'],
+  ]],
+  ['PID GAINS — APPROACH', [
+    ['KP_APPROACH', 'KP'], ['TD_APPROACH', 'TD'], ['N_APPROACH', 'N'],
+    ['V_RED_COEF_APPROACH', 'V-Red'],
+    ['OUTPUT_CLAMP_INTO_BAR_APPROACH', 'Clamp Into-Bar'],
+    ['OUTPUT_CLAMP_AWAY_APPROACH',     'Clamp Away'],
+  ]],
+  ['FEEDFORWARD', [
+    ['FF_SCALE', 'Scale'], ['FF_ALPHA', 'Alpha'], ['FF_EXIT_ALPHA', 'Exit Alpha'],
+  ]],
+];
+
+const _tCard = document.getElementById('tuning-card');
+const _tMsg  = document.getElementById('tuning-msg');
+let _tServer = {};   // last value confirmed by the server, per key
+let _tSpecs  = {};
+
+function _setTMsg(text, cls) { _tMsg.textContent = text; _tMsg.className = cls; }
+
+function _tInput(key) { return document.getElementById('tune-' + key); }
+
+function _tMarkDirty(key) {
+  const el = _tInput(key);
+  if (!el) return;
+  const dirty = el.value.trim() !== '' && Number(el.value) !== Number(_tServer[key]);
+  el.classList.toggle('dirty', dirty);
+}
+
+function _tBuild() {
+  const host = document.getElementById('tuning-groups');
+  host.innerHTML = '';
+  for (const [title, fields] of TUNE_LAYOUT) {
+    const g = document.createElement('div');
+    g.className = 'tune-group';
+    let html = `<div class="tune-group-title">${title}</div><div class="tune-fields">`;
+    for (const [key, label] of fields) {
+      const spec = _tSpecs[key] || [];
+      const hint = spec.length === 2 ? ` title="${key} — allowed ${spec[0]} … ${spec[1]}"` : '';
+      html += `<div class="tune-field">` +
+              `<label for="tune-${key}">${label}</label>` +
+              `<input type="number" step="any" id="tune-${key}" data-key="${key}"${hint}>` +
+              `</div>`;
+    }
+    g.innerHTML = html + `</div>`;
+    host.appendChild(g);
+  }
+  host.querySelectorAll('input[data-key]').forEach(el => {
+    el.addEventListener('input', () => _tMarkDirty(el.dataset.key));
+  });
+}
+
+// Write server values into the inputs and clear all dirty marks.
+function _tSync(values) {
+  _tServer = values;
+  for (const [key, val] of Object.entries(values)) {
+    const el = _tInput(key);
+    if (el) { el.value = val; el.classList.remove('dirty'); }
+  }
+}
+
+function _tLoad() {
+  return fetch('/api/params/tuning')
+    .then(r => r.json())
+    .then(d => {
+      _tSpecs = d.specs || {};
+      _tBuild();
+      _tSync(d.values || {});
+    })
+    .catch(() => _setTMsg('Failed to load tuning parameters.', 'warn'));
+}
+
+function _tCollectChanged() {
+  const out = {};
+  for (const [, fields] of TUNE_LAYOUT) {
+    for (const [key] of fields) {
+      const el = _tInput(key);
+      if (!el || el.value.trim() === '') continue;
+      if (Number(el.value) !== Number(_tServer[key])) out[key] = Number(el.value);
+    }
+  }
+  return out;
+}
+
+function _tPost(url, body, pendingMsg) {
+  _setTMsg(pendingMsg, 'info');
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) { _setTMsg(d.error || 'Failed to apply.', 'warn'); return false; }
+      _tSync(d.values || {});
+      loadParams();          // refresh the read-only tables below
+      return true;
+    })
+    .catch(() => { _setTMsg('Connection error — not applied.', 'warn'); return false; });
+}
+
+document.getElementById('tune-apply').addEventListener('click', () => {
+  if (_tCard.classList.contains('locked')) return;
+  const changed = _tCollectChanged();
+  if (!Object.keys(changed).length) { _setTMsg('Nothing changed.', 'info'); return; }
+  _tPost('/api/params/tuning', changed, 'Applying…').then(ok => {
+    if (ok) _setTMsg('Applied. Manual speeds take effect now; AUTO values load on '
+                     + 'next START. Not saved — resets to profile on restart.', 'ok');
+  });
+});
+
+document.getElementById('tune-revert').addEventListener('click', () => {
+  if (_tCard.classList.contains('locked')) return;
+  _tPost('/api/params/tuning/reset', {}, 'Resetting…').then(ok => {
+    if (ok) _setTMsg('Reset to profile values.', 'ok');
+  });
+});
+
+_tLoad();
+
+function pollMode() {
+  fetch('/api/state')
+    .then(r => r.json())
+    .then(d => {
+      const mode     = d.agv && d.agv.mode;
+      const isLocked = ['running', 'emergency'].includes(mode);
+      if (isLocked !== _locked) {
+        _locked = isLocked;
+        _card.classList.toggle('locked', isLocked);
+        _tCard.classList.toggle('locked', isLocked);
+        if (isLocked) {
+          _setMsg('Locked — cannot change while AGV is ' + mode.toUpperCase() + '.', 'warn');
+          _setTMsg('Locked — tuning is only editable in idle ARMED or idle MANUAL.', 'warn');
+        } else {
+          _setMsg('Changes apply immediately. Resets to profile default on restart.', 'info');
+          _setTMsg('Edit values, then press APPLY.', 'info');
+        }
+      }
+    })
+    .catch(() => {});
+}
+pollMode();
+setInterval(pollMode, 1000);
+
+// ── Wheel-speed calibration ────────────────────────────────────────────────
+let _calWheel = 'right';
+const _calMsg = document.getElementById('calib-msg');
+function _setCalMsg(t, c) { _calMsg.textContent = t; _calMsg.className = c; }
+
+function _selWheel(w) {
+  _calWheel = w;
+  document.getElementById('wheel-right').classList.toggle('sel', w === 'right');
+  document.getElementById('wheel-left').classList.toggle('sel',  w === 'left');
+}
+document.getElementById('wheel-right').addEventListener('click', () => _selWheel('right'));
+document.getElementById('wheel-left').addEventListener('click',  () => _selWheel('left'));
+_selWheel('right');
+
+document.getElementById('calib-start').addEventListener('click', () => {
+  _setCalMsg('Starting…', 'info');
+  fetch('/api/calibration/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wheel: _calWheel })
+  })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => _setCalMsg(ok ? `Calibration started (${d.wheel}).` : (d.error || 'Failed.'),
+                                   ok ? 'ok' : 'warn'))
+    .catch(() => _setCalMsg('Connection error.', 'warn'));
+});
+document.getElementById('calib-stop').addEventListener('click', () => {
+  fetch('/api/calibration/stop', { method: 'POST' })
+    .then(r => r.json()).then(() => _setCalMsg('Stop sent.', 'info'))
+    .catch(() => _setCalMsg('Connection error.', 'warn'));
+});
+
+function _fmt(v, unit) { return (v !== null && v !== undefined ? v : '—') + (unit || ''); }
+
+function pollCalib() {
+  fetch('/api/calibration/status')
+    .then(r => r.json())
+    .then(d => {
+      const cal = d.calibration || {};
+      const enc = d.encoder || {};
+      const active = !!cal.active;
+      document.getElementById('calib-state').textContent =
+        !d.available ? 'DISABLED' : (active ? 'RUNNING' : (d.requested ? 'REQUESTED' : 'IDLE'));
+      document.getElementById('calib-cmd').textContent     = _fmt(cal.v_cmd, ' m/s');
+      document.getElementById('calib-act').textContent     = _fmt(enc.v, ' m/s');
+      document.getElementById('calib-rpm').textContent     = _fmt(enc.rpm);
+      document.getElementById('calib-elapsed').textContent = _fmt(cal.elapsed, ' s');
+      document.getElementById('calib-csv').textContent     = cal.csv_path || '—';
+      // The encoder driver only runs during a calibration run (it shares the one
+      // CANable adapter with the MGS1600 sensor), so it can only report CONNECTED
+      // while RUNNING/REQUESTED. At idle show a neutral note, not a red "NO LINK".
+      const link = document.getElementById('calib-link');
+      if (active || d.requested) {
+        link.textContent = enc.connected ? 'CONNECTED' : 'NO LINK';
+        link.className = 'param-val ' + (enc.connected ? 'bool-true' : 'bool-false');
+      } else {
+        link.textContent = d.available ? 'IDLE (reads during calib)' : 'DISABLED';
+        link.className = 'param-val';
+      }
+      // Start only from ARMED + encoder available + not already running/requested.
+      document.getElementById('calib-start').disabled =
+        !(d.available && d.mode === 'armed' && !active && !d.requested);
+      document.getElementById('calib-stop').disabled = !(active || d.requested);
+    })
+    .catch(() => {});
+}
+pollCalib();
+setInterval(pollCalib, 500);
+</script>
+</body>
+</html>

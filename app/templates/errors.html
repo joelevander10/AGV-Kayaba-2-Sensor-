@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGV — Error Log</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #d4d0c8;
+    color: #000;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    padding: 12px;
+    padding-bottom: 100px;
+  }
+
+  .raised {
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+  }
+
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 19px;
+    background: #000080;
+    color: #fff;
+    padding: 8px 15px;
+    margin-bottom: 12px;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  #header .title { flex: 1; }
+  #count { font-size: 14px; color: #c0c0c0; }
+  #ts    { font-size: 14px; color: #c0c0c0; }
+
+  #toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    background: #c0c0c0;
+  }
+  #toolbar button {
+    padding: 5px 20px;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #808080;
+    border-bottom: 2px solid #808080;
+    background: #c0c0c0;
+  }
+  #toolbar button:active {
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  #btn-clear { background: #800000; color: #fff; }
+  .filter-btn { background: #c0c0c0; color: #000; }
+  .filter-btn.active { background: #000080; color: #fff; }
+  #toolbar label { font-size: 14px; font-weight: bold; color: #404040; }
+  #btn-restart { margin-left: auto; background: #b06000; color: #fff; }
+  #btn-restart:disabled { opacity: 0.4; cursor: not-allowed; }
+  #restart-status { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
+  #restart-status.warn { color: #a00000; }
+  #restart-status.ok   { color: #006000; }
+
+  #log-container {
+    background: #1a1a1a;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    overflow-y: auto;
+    max-height: calc(100vh - 220px);
+    padding: 6px;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 4px 6px;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry.WARNING  { background: #2a2000; }
+  .log-entry.ERROR    { background: #2a0000; }
+  .log-entry.CRITICAL { background: #3a0030; }
+
+  .log-time    { color: #808080; flex-shrink: 0; font-size: 13px; }
+  .log-level   { font-weight: bold; flex-shrink: 0; width: 90px; font-size: 14px; }
+  .log-level.WARNING  { color: #ffcc00; }
+  .log-level.ERROR    { color: #ff4040; }
+  .log-level.CRITICAL { color: #ff80ff; }
+  .log-logger  { color: #60a0d0; flex-shrink: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .log-msg     { color: #e0e0e0; flex: 1; word-break: break-word; }
+
+  #empty-msg {
+    color: #404040;
+    text-align: center;
+    padding: 40px;
+    font-size: 16px;
+  }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 86px;
+    background: #1a1a6e;
+    display: flex;
+    z-index: 200;
+    border-top: 2px solid #4040a0;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0e0;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-right: 1px solid #3030a0;
+  }
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+  .nav-btn.errors-btn { color: #ff8080; }
+  .nav-btn.errors-btn.active { background: #800000; color: #fff; border-top: 2px solid #ff8080; }
+</style>
+</head>
+<body>
+
+<div id="header" class="raised">
+  <span class="title">ERROR &amp; WARNING LOG</span>
+  <span id="count">— entries</span>
+  <span id="ts">—</span>
+</div>
+
+<div id="toolbar" class="raised">
+  <label>Filter:</label>
+  <button class="filter-btn active" id="f-all"    onclick="setFilter('all')">ALL</button>
+  <button class="filter-btn"        id="f-error"  onclick="setFilter('error')">ERROR</button>
+  <button class="filter-btn"        id="f-warn"   onclick="setFilter('warn')">WARN</button>
+  <button id="btn-clear" onclick="clearLog()">CLEAR</button>
+  <label id="auto-scroll-label">
+    <input type="checkbox" id="chk-autoscroll" checked> AUTO-SCROLL
+  </label>
+  <span id="restart-status"></span>
+  <button id="btn-restart" onclick="restartController()" disabled>RESTART CONTROLLER</button>
+</div>
+
+<div id="log-container">
+  <div id="empty-msg">No errors or warnings recorded.</div>
+</div>
+
+<nav id="nav-bar">
+  <a class="nav-btn" href="/">HOME</a>
+  <a class="nav-btn" href="/manual">MANUAL</a>
+  <a class="nav-btn" href="/io">IO</a>
+  <a class="nav-btn" href="/params">PARAMS</a>
+  <a class="nav-btn errors-btn active" href="/errors">ERRORS</a>
+</nav>
+
+<script>
+let _filter    = 'all';
+let _entries   = [];
+let _cleared   = 0;   // index: entries at/before this index are hidden after clear
+
+function setFilter(f) {
+  _filter = f;
+  ['all','error','warn'].forEach(k => {
+    document.getElementById('f-' + k).classList.toggle('active', k === f);
+  });
+  render();
+}
+
+function clearLog() {
+  _cleared = _entries.length;
+  render();
+}
+
+function matches(e) {
+  if (_filter === 'error')  return e.level === 'ERROR'   || e.level === 'CRITICAL';
+  if (_filter === 'warn')   return e.level === 'WARNING';
+  return true;
+}
+
+function render() {
+  const container = document.getElementById('log-container');
+  const visible   = _entries.slice(_cleared).filter(matches);
+
+  if (visible.length === 0) {
+    container.innerHTML = '<div id="empty-msg">No entries matching current filter.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  visible.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + e.level;
+    div.innerHTML =
+      `<span class="log-time">${e.time}</span>` +
+      `<span class="log-level ${e.level}">${e.level}</span>` +
+      `<span class="log-logger" title="${e.logger}">${e.logger}</span>` +
+      `<span class="log-msg">${e.message}</span>`;
+    container.appendChild(div);
+  });
+
+  if (document.getElementById('chk-autoscroll').checked) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function poll() {
+  fetch('/api/errors')
+    .then(r => r.json())
+    .then(data => {
+      _entries = data;
+      const visible = data.slice(_cleared).filter(matches);
+      document.getElementById('count').textContent =
+        visible.length + ' / ' + data.length + ' entries';
+      document.getElementById('ts').textContent = new Date().toLocaleTimeString();
+      render();
+    })
+    .catch(() => { document.getElementById('ts').textContent = 'NO CONN'; });
+}
+
+poll();
+setInterval(poll, 1000);
+
+// ── Restart controller button ──────────────────────────────────────────────
+const _BLOCK_MODES = ['running', 'emergency'];
+
+function setRestartStatus(text, cls) {
+  const el = document.getElementById('restart-status');
+  el.textContent = text;
+  el.className = cls || '';
+}
+
+function pollRestartMode() {
+  fetch('/api/state')
+    .then(r => r.json())
+    .then(d => {
+      const mode    = (d.agv && d.agv.mode) || null;
+      const blocked = _BLOCK_MODES.includes(mode);
+      const btn     = document.getElementById('btn-restart');
+      btn.disabled  = blocked;
+      if (blocked && !btn.dataset.restarting)
+        setRestartStatus('Disabled — AGV is ' + mode.toUpperCase(), 'warn');
+      else if (!btn.dataset.restarting)
+        setRestartStatus('', '');
+    })
+    .catch(() => {
+      document.getElementById('btn-restart').disabled = true;
+    });
+}
+
+function restartController() {
+  const btn = document.getElementById('btn-restart');
+  if (btn.disabled) return;
+  if (!confirm('Restart agv-controller.service now?\nThe controller will briefly stop.')) return;
+  btn.dataset.restarting = '1';
+  btn.disabled = true;
+  setRestartStatus('Restarting…', 'warn');
+  fetch('/api/restart', { method: 'POST' })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) {
+        delete btn.dataset.restarting;
+        setRestartStatus(d.error || 'Restart failed', 'warn');
+      } else {
+        setRestartStatus('Restarting — page will reconnect…', 'ok');
+        // Service is going down; reload shortly to pick up the fresh instance.
+        setTimeout(() => location.reload(), 6000);
+      }
+    })
+    .catch(() => {
+      // Connection drop is expected as the service stops; treat as success.
+      setRestartStatus('Restarting — page will reconnect…', 'ok');
+      setTimeout(() => location.reload(), 6000);
+    });
+}
+
+pollRestartMode();
+setInterval(pollRestartMode, 1000);
+</script>
+</body>
+</html>

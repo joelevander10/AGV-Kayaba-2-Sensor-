@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AGV Manual Remote</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #d4d0c8;
+    color: #000;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    height: calc(100dvh - 86px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 86px;
+    background: #1a1a6e;
+    display: flex;
+    z-index: 200;
+    border-top: 2px solid #4040a0;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0e0;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-decoration: none;
+    text-transform: uppercase;
+    border-right: 2px solid #3030a0;
+  }
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+
+  /* ── Header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: #000080;
+    color: #fff;
+    padding: 12px 19px;
+    font-weight: bold;
+    font-size: 22px;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+  #header a {
+    color: #adf;
+    text-decoration: none;
+    font-size: 19px;
+    letter-spacing: 0;
+  }
+  #header .title { flex: 1; }
+
+  .mode-badge {
+    padding: 2px 24px;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-top:    2px solid #808080;
+    border-left:   2px solid #808080;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+    background: #c0c0c0;
+    color: #000;
+  }
+  .mode-manual  { background: #0000c0; color: #fff; }
+  .mode-armed   { background: #c0c000; color: #000; }
+  .mode-running { background: #00a000; color: #fff; }
+  .mode-reversing { background: #b06000; color: #fff; }
+  .mode-emergency { background: #c00000; color: #fff; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    padding: 8px 19px;
+    background: #c0c0c0;
+    border-bottom: 2px solid #808080;
+    font-size: 19px;
+    flex-shrink: 0;
+  }
+  #status-bar.ok   { color: #006000; }
+  #status-bar.warn { color: #c00000; font-weight: bold; }
+
+  /* ── Main area ── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  /* ── Compass grid ── */
+  #compass {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 9px;
+    width: min(54vw, 54vh, 421px);
+    height: min(54vw, 54vh, 421px);
+    flex-shrink: 0;
+  }
+
+  .btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: #c0c0c0;
+    border-top:    4px solid #fff;
+    border-left:   4px solid #fff;
+    border-right:  4px solid #404040;
+    border-bottom: 4px solid #404040;
+    cursor: pointer;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.10px;
+    text-align: center;
+    line-height: 1.2;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.05s;
+  }
+
+  .btn .arrow {
+    font-size: 21px;
+    line-height: 1;
+  }
+
+  .btn:active,
+  .btn.pressed {
+    background: #a0a0a0;
+    border-top:    4px solid #404040;
+    border-left:   4px solid #404040;
+    border-right:  4px solid #fff;
+    border-bottom: 4px solid #fff;
+  }
+
+  .btn.diag { background: #b8b8b0; }
+  .btn.diag:active, .btn.diag.pressed { background: #909088; }
+
+  .center-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 31px;
+    opacity: 0.3;
+  }
+
+  /* Disabled state when not in manual */
+  body.not-manual #compass { opacity: 0.35; pointer-events: none; }
+  body.not-manual #status-bar { animation: blink 1s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Active command display ── */
+  #active-cmd {
+    text-align: center;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 8px 19px;
+    background: #c0c0c0;
+    border-top: 2px solid #808080;
+    flex-shrink: 0;
+    height: 55px;
+  }
+
+  #sensor-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+    padding: 12px 14px;
+    background: #b8b4ac;
+    border-left: 1px solid #a0a0a0;
+    flex-shrink: 0;
+    width: 155px;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 0.10px;
+    align-self: stretch;
+  }
+  .sen-field { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .sen-field-row { display: flex; align-items: center; gap: 8px; }
+  .sen-label { color: #606060; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+  .sen-val {
+    font-size: 18px;
+    font-weight: bold;
+    color: #000080;
+    background: #fff;
+    padding: 1px 8px;
+    min-width: 80px;
+    text-align: right;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .lamp-sm {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #888; border: 2px solid #606060;
+  }
+  .lamp-sm.on { background: radial-gradient(circle at 35% 35%, #80ff80, #00a000); border-color: #005000; box-shadow: 0 0 8px 1px #00cc0066; }
+  .nav-btn.errors-btn { color: #ff8080; }
+  .nav-btn.errors-btn.active { background: #800000; color: #fff; border-top: 2px solid #ff8080; }
+
+  /* ══════════════════════════════════════════════
+     WEB BUTTON BYPASS PANEL
+     ══════════════════════════════════════════════ */
+
+  #bypass-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    flex-shrink: 0;
+  }
+
+  /* Bypass mode entry/exit buttons */
+  .byp-mode-btn {
+    width: 260px;
+    padding: 14px 8px;
+    background: #c0c000;
+    border-top:    4px solid #ffff80;
+    border-left:   4px solid #ffff80;
+    border-right:  4px solid #606000;
+    border-bottom: 4px solid #606000;
+    cursor: pointer;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-align: center;
+    line-height: 1.3;
+    color: #000;
+    touch-action: manipulation;
+  }
+  .byp-mode-btn:active {
+    border-top:    4px solid #606000;
+    border-left:   4px solid #606000;
+    border-right:  4px solid #ffff80;
+    border-bottom: 4px solid #ffff80;
+    background: #a0a000;
+  }
+  .byp-mode-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  /* 2×2 grid of virtual buttons */
+  #vbtn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 24px 28px;
+  }
+
+  /* Each virtual button cell: shape on top, label below */
+  .vbtn-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Base virtual button shape */
+  .vbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    text-align: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: filter 0.05s;
+    line-height: 1.2;
+  }
+
+  /* Momentary push-buttons (START, RESET): circles */
+  .vbtn-pb {
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    border: 6px solid rgba(0,0,0,0.35);
+  }
+  .vbtn-pb:active { filter: brightness(0.75); }
+  body.web-btn-off .vbtn-pb { opacity: 0.4; pointer-events: none; }
+
+  /* START — green */
+  .vbtn-start {
+    background: radial-gradient(circle at 38% 38%, #80ff80, #00a000);
+    color: #003000;
+    box-shadow: 0 5px 0 #004400, inset 0 2px 4px #80ff8040;
+  }
+  .vbtn-start:active { box-shadow: 0 2px 0 #004400; }
+
+  /* RESET — yellow */
+  .vbtn-reset {
+    background: radial-gradient(circle at 38% 38%, #ffff80, #c0a000);
+    color: #302000;
+    box-shadow: 0 5px 0 #806000, inset 0 2px 4px #ffff8040;
+  }
+  .vbtn-reset:active { box-shadow: 0 2px 0 #806000; }
+
+  /* EMERGENCY — red rounded rect */
+  .vbtn-emg {
+    width: 116px;
+    height: 116px;
+    border-radius: 22px;
+    border: 6px solid rgba(0,0,0,0.35);
+    background: radial-gradient(circle at 38% 38%, #ff8080, #c00000);
+    color: #fff;
+    box-shadow: 0 5px 0 #600000, inset 0 2px 4px #ff808040;
+  }
+  .vbtn-emg:active { box-shadow: 0 2px 0 #600000; filter: brightness(0.8); }
+  .vbtn-emg.active-emg {
+    background: radial-gradient(circle at 38% 38%, #ff4040, #800000);
+    box-shadow: 0 2px 0 #600000, 0 0 18px 5px #ff000088;
+  }
+  body.web-btn-off .vbtn-emg { opacity: 0.4; pointer-events: none; }
+
+  /* MAN/AUTO toggle — grey switch body */
+  .vbtn-switch {
+    width: 116px;
+    height: 116px;
+    border-radius: 10px;
+    border: 5px solid #606060;
+    background: #505050;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+    position: relative;
+    overflow: hidden;
+  }
+  body.web-btn-off .vbtn-switch { opacity: 0.4; pointer-events: none; }
+  .sw-label {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: #ccc;
+    z-index: 1;
+  }
+  .sw-knob {
+    width: 90px;
+    height: 36px;
+    border-radius: 6px;
+    background: #c0c0c0;
+    border-top:   3px solid #fff;
+    border-left:  3px solid #fff;
+    border-right: 3px solid #606060;
+    border-bottom:3px solid #606060;
+    transition: transform 0.12s;
+    z-index: 1;
+  }
+  /* Manual = knob at top */
+  .vbtn-switch.sw-manual .sw-knob { transform: translateY(-4px); }
+  /* Auto = knob at bottom */
+  .vbtn-switch.sw-auto   .sw-knob { transform: translateY(4px); }
+
+  .vbtn-label {
+    font-size: 18px;
+    font-weight: bold;
+    color: #404040;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* Active highlight on EMG lamp-sm */
+  .lamp-sm.on-red { background: radial-gradient(circle at 35% 35%, #ff8080, #c00000); border-color: #600000; box-shadow: 0 0 8px 1px #ff000066; }
+
+  /* ══════════════════════════════════════════════
+     PUSHER PANEL
+     ══════════════════════════════════════════════ */
+
+  #pusher-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #b8b4ac;
+    border-left: 1px solid #a0a0a0;
+    flex-shrink: 0;
+    width: 150px;
+    align-self: stretch;
+    justify-content: center;
+  }
+  .pusher-title {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    color: #606060;
+    text-align: center;
+  }
+  .pusher-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .pusher-status-row .sen-label { font-size: 12px; }
+  .pusher-status-val {
+    font-size: 13px;
+    font-weight: bold;
+    color: #000080;
+    background: #fff;
+    text-align: center;
+    padding: 2px 4px;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    text-transform: uppercase;
+  }
+  .pusher-btn-row {
+    display: flex;
+    gap: 8px;
+  }
+  .pbtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+    background: #c0c0c0;
+    border-top:    4px solid #fff;
+    border-left:   4px solid #fff;
+    border-right:  4px solid #404040;
+    border-bottom: 4px solid #404040;
+    cursor: pointer;
+    font-family: Consolas, 'Courier New', Courier, monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    text-align: center;
+    line-height: 1.15;
+    padding: 8px 2px;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pbtn:active, .pbtn.pressed {
+    background: #a0a0a0;
+    border-top:    4px solid #404040;
+    border-left:   4px solid #404040;
+    border-right:  4px solid #fff;
+    border-bottom: 4px solid #fff;
+  }
+  .pbtn:disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .pbtn-estop {
+    background: radial-gradient(circle at 38% 38%, #ff8080, #c00000);
+    color: #fff;
+    border: 4px solid rgba(0,0,0,0.35);
+    box-shadow: 0 4px 0 #600000;
+    font-size: 12px;
+    padding: 10px 2px;
+  }
+  .pbtn-estop:active { box-shadow: 0 1px 0 #600000; }
+  .pbtn-estop.estop-active {
+    background: radial-gradient(circle at 38% 38%, #ff4040, #800000);
+    box-shadow: 0 1px 0 #600000, 0 0 16px 4px #ff000088;
+  }
+</style>
+</head>
+<body class="not-manual web-btn-off">
+
+<div id="header">
+  <span class="title">AGV MANUAL REMOTE</span>
+  <span id="mode-badge" class="mode-badge">---</span>
+</div>
+
+<div id="status-bar" class="warn">Connecting...</div>
+
+<div id="main">
+
+  <!-- ── Web button bypass panel ── -->
+  <div id="bypass-panel">
+    <!-- Bypass activation buttons -->
+    <button class="byp-mode-btn" id="btn-byp-enter">WEB BUTTON<br>MODE</button>
+    <button class="byp-mode-btn" id="btn-byp-exit">END WEB<br>BUTTON MODE</button>
+
+    <!-- 2×2 virtual button grid -->
+    <div id="vbtn-grid">
+
+      <!-- START -->
+      <div class="vbtn-cell">
+        <button class="vbtn vbtn-pb vbtn-start" id="vbtn-start">STA.</button>
+        <span class="vbtn-label">START</span>
+      </div>
+
+      <!-- RESET -->
+      <div class="vbtn-cell">
+        <button class="vbtn vbtn-pb vbtn-reset" id="vbtn-reset">RST</button>
+        <span class="vbtn-label">RESET</span>
+      </div>
+
+      <!-- MAN/AUTO switch -->
+      <div class="vbtn-cell">
+        <div class="vbtn-switch sw-auto" id="vbtn-switch">
+          <span class="sw-label">MAN</span>
+          <div class="sw-knob"></div>
+          <span class="sw-label">AUTO</span>
+        </div>
+        <span class="vbtn-label">MAN / AUTO</span>
+      </div>
+
+      <!-- EMERGENCY -->
+      <div class="vbtn-cell">
+        <button class="vbtn vbtn-emg" id="vbtn-emg">EMG</button>
+        <span class="vbtn-label">EMERGENCY</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Compass grid ── -->
+  <div id="compass">
+    <!-- Row 1 -->
+    <button class="btn diag" data-cmd="fwd_left"  id="btn-fwd-left">
+      <span class="arrow">&#8598;</span>FWD-L
+    </button>
+    <button class="btn" data-cmd="forward" id="btn-fwd">
+      <span class="arrow">&#8593;</span>FORWARD
+    </button>
+    <button class="btn diag" data-cmd="fwd_right" id="btn-fwd-right">
+      <span class="arrow">&#8599;</span>FWD-R
+    </button>
+
+    <!-- Row 2 -->
+    <button class="btn" data-cmd="left" id="btn-left">
+      <span class="arrow">&#8592;</span>LEFT
+    </button>
+    <div class="center-cell">&#9679;</div>
+    <button class="btn" data-cmd="right" id="btn-right">
+      <span class="arrow">&#8594;</span>RIGHT
+    </button>
+
+    <!-- Row 3 -->
+    <button class="btn diag" data-cmd="rvs_left" id="btn-rvs-left">
+      <span class="arrow">&#8601;</span>RVS-L
+    </button>
+    <button class="btn" data-cmd="reverse" id="btn-rvs">
+      <span class="arrow">&#8595;</span>REVERSE
+    </button>
+    <button class="btn diag" data-cmd="rvs_right" id="btn-rvs-right">
+      <span class="arrow">&#8600;</span>RVS-R
+    </button>
+  </div>
+
+  <div id="sensor-bar">
+    <div class="sen-field">
+      <span class="sen-label">Tape Pos</span>
+      <div class="sen-field-row">
+        <span class="sen-val" id="m-pos">—</span>
+        <span class="sen-label">mm</span>
+      </div>
+    </div>
+    <div class="sen-field">
+      <div class="sen-field-row">
+        <span class="lamp-sm" id="m-tape"></span><span class="sen-label">TAPE</span>
+      </div>
+    </div>
+    <div class="sen-field">
+      <div class="sen-field-row">
+        <span class="lamp-sm" id="m-lm"></span><span class="sen-label">L.MRK</span>
+      </div>
+    </div>
+    <div class="sen-field">
+      <div class="sen-field-row">
+        <span class="lamp-sm" id="m-rm"></span><span class="sen-label">R.MRK</span>
+      </div>
+    </div>
+    <div class="sen-field">
+      <div class="sen-field-row">
+        <span class="lamp-sm" id="m-fail"></span><span class="sen-label">FAIL</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pusher control panel ── -->
+  <div id="pusher-panel">
+    <div class="pusher-title">PUSHER</div>
+    <div class="pusher-status-row">
+      <span class="lamp-sm" id="p-hooked"></span><span class="sen-label">HOOKED</span>
+    </div>
+    <div class="pusher-status-val" id="p-status">—</div>
+
+    <div class="pusher-btn-row">
+      <button class="pbtn" id="pbtn-full-up">&#9650;<br>FULL UP</button>
+      <button class="pbtn" id="pbtn-full-down">&#9660;<br>FULL DOWN</button>
+    </div>
+    <div class="pusher-btn-row">
+      <button class="pbtn" id="pbtn-jog-up">&#9650;<br>JOG UP</button>
+      <button class="pbtn" id="pbtn-jog-down">&#9660;<br>JOG DOWN</button>
+    </div>
+    <button class="pbtn pbtn-estop" id="pbtn-estop">PUSHER<br>E-STOP</button>
+  </div>
+</div>
+
+<div id="active-cmd"></div>
+
+<script>
+  const statusBar  = document.getElementById('status-bar');
+  const modeBadge  = document.getElementById('mode-badge');
+  const activeCmd  = document.getElementById('active-cmd');
+  const body       = document.body;
+  let   activeBtn  = null;
+  let   lastMode   = null;
+
+  // ── Send movement command to backend ─────────────────────────────────────────
+  let _heartbeatTimer = null;
+  let _activeCmd      = null;
+
+  function _doPost(cmd) {
+    fetch('/api/manual/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd }),
+      keepalive: true
+    }).catch(() => {});
+  }
+
+  function sendCommand(cmd) {
+    if (_heartbeatTimer) { clearInterval(_heartbeatTimer); _heartbeatTimer = null; }
+    _activeCmd = cmd;
+    _doPost(cmd);
+    if (cmd !== null) {
+      _heartbeatTimer = setInterval(() => _doPost(cmd), 100);
+    }
+  }
+
+  // ── Movement button press / release ──────────────────────────────────────────
+  function onPress(btn) {
+    if (activeBtn && activeBtn !== btn) onRelease(activeBtn);
+    activeBtn = btn;
+    btn.classList.add('pressed');
+    const cmd = btn.dataset.cmd;
+    activeCmd.textContent = '► ' + cmd.toUpperCase().replace('_', ' ') + ' [BTN]';
+    sendCommand(cmd);
+  }
+
+  function onRelease(btn) {
+    if (!btn) return;
+    btn.classList.remove('pressed');
+    activeBtn = null;
+    activeCmd.textContent = '';
+    sendCommand(null);
+  }
+
+  // ── Keyboard arrow keys ───────────────────────────────────────────────────────
+  const _keysDown  = new Set();
+  const _arrowKeys = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+
+  function _keyToCmd() {
+    const up    = _keysDown.has('ArrowUp');
+    const down  = _keysDown.has('ArrowDown');
+    const left  = _keysDown.has('ArrowLeft');
+    const right = _keysDown.has('ArrowRight');
+    if (up   && left)  return 'fwd_left';
+    if (up   && right) return 'fwd_right';
+    if (down && left)  return 'rvs_left';
+    if (down && right) return 'rvs_right';
+    if (up)            return 'forward';
+    if (down)          return 'reverse';
+    if (left)          return 'left';
+    if (right)         return 'right';
+    return null;
+  }
+
+  function _updateKeyCmd() {
+    if (activeBtn) return;
+    const cmd = _keyToCmd();
+    if (cmd === _activeCmd) return;
+    activeCmd.textContent = cmd
+      ? '► ' + cmd.toUpperCase().replace('_', ' ') + ' [KEY]'
+      : '';
+    sendCommand(cmd);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (!_arrowKeys.has(e.key)) return;
+    e.preventDefault();
+    if (_keysDown.has(e.key)) return;
+    _keysDown.add(e.key);
+    _updateKeyCmd();
+  });
+
+  document.addEventListener('keyup', e => {
+    if (!_arrowKeys.has(e.key)) return;
+    _keysDown.delete(e.key);
+    _updateKeyCmd();
+  });
+
+  document.querySelectorAll('.btn[data-cmd]').forEach(btn => {
+    btn.addEventListener('mousedown',  e => { e.preventDefault(); onPress(btn); });
+    btn.addEventListener('mouseup',    e => onRelease(btn));
+    btn.addEventListener('mouseleave', e => { if (activeBtn === btn) onRelease(btn); });
+    btn.addEventListener('touchstart',  e => { e.preventDefault(); onPress(btn); }, { passive: false });
+    btn.addEventListener('touchend',    e => { e.preventDefault(); onRelease(btn); }, { passive: false });
+    btn.addEventListener('touchcancel', e => { e.preventDefault(); onRelease(btn); }, { passive: false });
+  });
+
+  window.addEventListener('blur', () => { if (activeBtn) onRelease(activeBtn); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && activeBtn) onRelease(activeBtn);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  WEB BUTTON BYPASS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  let webBtnActive   = false;   // mirrors server web_button_mode
+  let webEmgActive   = false;   // mirrors server web_btn_emergency (level)
+  let webManualState = false;   // mirrors server web_btn_manual (level)
+
+  function postBtn(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => {});
+  }
+
+  function applyWebBtnUi() {
+    if (webBtnActive) {
+      body.classList.remove('web-btn-off');
+      document.getElementById('btn-byp-enter').disabled = true;
+      document.getElementById('btn-byp-exit').disabled  = false;
+    } else {
+      body.classList.add('web-btn-off');
+      document.getElementById('btn-byp-enter').disabled = false;
+      document.getElementById('btn-byp-exit').disabled  = true;
+      // Reset visual states when exiting
+      webEmgActive   = false;
+      webManualState = false;
+    }
+    updateSwitchUi();
+    updateEmgUi();
+  }
+
+  function updateSwitchUi() {
+    const sw = document.getElementById('vbtn-switch');
+    sw.classList.toggle('sw-manual', webManualState);
+    sw.classList.toggle('sw-auto',  !webManualState);
+  }
+
+  function updateEmgUi() {
+    const emg = document.getElementById('vbtn-emg');
+    emg.classList.toggle('active-emg', webEmgActive);
+  }
+
+  // Enter / exit bypass mode
+  document.getElementById('btn-byp-enter').addEventListener('click', () => {
+    postBtn('/api/web_button/mode', { enable: true }).then(() => {
+      webBtnActive = true;
+      applyWebBtnUi();
+    });
+  });
+
+  document.getElementById('btn-byp-exit').addEventListener('click', () => {
+    postBtn('/api/web_button/mode', { enable: false }).then(() => {
+      webBtnActive = false;
+      applyWebBtnUi();
+    });
+  });
+
+  // START — momentary
+  document.getElementById('vbtn-start').addEventListener('click', () => {
+    if (!webBtnActive) return;
+    postBtn('/api/web_button/press', { button: 'start', value: true });
+  });
+
+  // RESET — momentary
+  document.getElementById('vbtn-reset').addEventListener('click', () => {
+    if (!webBtnActive) return;
+    postBtn('/api/web_button/press', { button: 'reset', value: true });
+  });
+
+  // MAN/AUTO switch — toggle level
+  document.getElementById('vbtn-switch').addEventListener('click', () => {
+    if (!webBtnActive) return;
+    webManualState = !webManualState;
+    updateSwitchUi();
+    postBtn('/api/web_button/press', { button: 'manual', value: webManualState });
+  });
+
+  // EMERGENCY — toggle level
+  document.getElementById('vbtn-emg').addEventListener('click', () => {
+    if (!webBtnActive) return;
+    webEmgActive = !webEmgActive;
+    updateEmgUi();
+    postBtn('/api/web_button/press', { button: 'emergency', value: webEmgActive });
+  });
+
+  // Initialise disabled state
+  document.getElementById('btn-byp-exit').disabled = true;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  PUSHER CONTROL
+  // ══════════════════════════════════════════════════════════════════════════════
+  // Three independent controls (see pusher.py / app.py for the server side):
+  //   FULL UP/DOWN — one tap, server runs to the proximity sensor on its own.
+  //   JOG UP/DOWN  — hold-to-run: keep re-posting while held, stop on release.
+  //   E-STOP       — latches; stays engaged until tapped again to clear.
+
+  let pusherEstopActive = false;
+
+  function postPusher(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true
+    }).catch(() => {});
+  }
+
+  // Full-travel — single tap, fire-and-forget.
+  document.getElementById('pbtn-full-up').addEventListener('click', () => {
+    postPusher('/api/pusher/move', { direction: 'up' });
+  });
+  document.getElementById('pbtn-full-down').addEventListener('click', () => {
+    postPusher('/api/pusher/move', { direction: 'down' });
+  });
+
+  // Jog — hold to run, release to stop. Re-posts every 150ms while held,
+  // well inside the server's 400ms watchdog, and posts direction:null once
+  // immediately on release so it stops right away rather than waiting for
+  // the watchdog to lapse.
+  let _jogTimer = null;
+  let _jogBtn   = null;
+
+  function jogStart(btn, direction) {
+    if (_jogBtn && _jogBtn !== btn) jogStop(_jogBtn);
+    _jogBtn = btn;
+    btn.classList.add('pressed');
+    postPusher('/api/pusher/jog', { direction });
+    if (_jogTimer) clearInterval(_jogTimer);
+    _jogTimer = setInterval(() => postPusher('/api/pusher/jog', { direction }), 150);
+  }
+
+  function jogStop(btn) {
+    if (!btn) return;
+    btn.classList.remove('pressed');
+    if (_jogTimer) { clearInterval(_jogTimer); _jogTimer = null; }
+    _jogBtn = null;
+    postPusher('/api/pusher/jog', { direction: null });
+  }
+
+  const jogUpBtn   = document.getElementById('pbtn-jog-up');
+  const jogDownBtn = document.getElementById('pbtn-jog-down');
+
+  jogUpBtn.addEventListener('mousedown',  e => { e.preventDefault(); jogStart(jogUpBtn, 'up'); });
+  jogUpBtn.addEventListener('mouseup',    () => jogStop(jogUpBtn));
+  jogUpBtn.addEventListener('mouseleave', () => { if (_jogBtn === jogUpBtn) jogStop(jogUpBtn); });
+  jogUpBtn.addEventListener('touchstart',  e => { e.preventDefault(); jogStart(jogUpBtn, 'up'); }, { passive: false });
+  jogUpBtn.addEventListener('touchend',    e => { e.preventDefault(); jogStop(jogUpBtn); }, { passive: false });
+  jogUpBtn.addEventListener('touchcancel', e => { e.preventDefault(); jogStop(jogUpBtn); }, { passive: false });
+
+  jogDownBtn.addEventListener('mousedown',  e => { e.preventDefault(); jogStart(jogDownBtn, 'down'); });
+  jogDownBtn.addEventListener('mouseup',    () => jogStop(jogDownBtn));
+  jogDownBtn.addEventListener('mouseleave', () => { if (_jogBtn === jogDownBtn) jogStop(jogDownBtn); });
+  jogDownBtn.addEventListener('touchstart',  e => { e.preventDefault(); jogStart(jogDownBtn, 'down'); }, { passive: false });
+  jogDownBtn.addEventListener('touchend',    e => { e.preventDefault(); jogStop(jogDownBtn); }, { passive: false });
+  jogDownBtn.addEventListener('touchcancel', e => { e.preventDefault(); jogStop(jogDownBtn); }, { passive: false });
+
+  window.addEventListener('blur', () => { if (_jogBtn) jogStop(_jogBtn); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && _jogBtn) jogStop(_jogBtn);
+  });
+
+  // E-STOP — toggle/latch, mirrors server state.pusher_estop.
+  document.getElementById('pbtn-estop').addEventListener('click', () => {
+    pusherEstopActive = !pusherEstopActive;
+    postPusher('/api/pusher/estop', { enable: pusherEstopActive });
+    applyPusherEstopUi();
+  });
+
+  function applyPusherEstopUi() {
+    document.getElementById('pbtn-estop').classList.toggle('estop-active', pusherEstopActive);
+    [ 'pbtn-full-up', 'pbtn-full-down', 'pbtn-jog-up', 'pbtn-jog-down' ]
+      .forEach(id => { document.getElementById(id).disabled = pusherEstopActive; });
+    if (pusherEstopActive && _jogBtn) jogStop(_jogBtn);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  STATE POLLING
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  function applyMode(mode) {
+    if (mode === lastMode) return;
+    lastMode = mode;
+
+    modeBadge.className = 'mode-badge';
+    modeBadge.textContent = mode ? mode.toUpperCase() : '---';
+    if (mode === 'manual')      modeBadge.classList.add('mode-manual');
+    else if (mode === 'armed')     modeBadge.classList.add('mode-armed');
+    else if (mode === 'running')   modeBadge.classList.add('mode-running');
+    else if (mode === 'reversing') modeBadge.classList.add('mode-reversing');
+    else if (mode === 'emergency') modeBadge.classList.add('mode-emergency');
+
+    if (mode === 'manual') {
+      body.classList.remove('not-manual');
+      statusBar.className = 'ok';
+      statusBar.textContent = 'MANUAL MODE — hold a button to move.';
+    } else {
+      body.classList.add('not-manual');
+      if (activeBtn) onRelease(activeBtn);
+      statusBar.className = 'warn';
+      statusBar.textContent = mode
+        ? 'Switch AGV to MANUAL mode to use this remote. Current: ' + mode.toUpperCase()
+        : 'AGV not ready.';
+    }
+  }
+
+  function setSenLamp(id, on) {
+    const el = document.getElementById(id);
+    if (el) el.className = 'lamp-sm' + (on ? ' on' : '');
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch('/api/state');
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      applyMode(d.agv.mode);
+
+      // Sync web button state from server (handles page reload / multi-tab)
+      const serverWbm = d.agv.web_button_mode;
+      if (serverWbm !== webBtnActive) {
+        webBtnActive   = serverWbm;
+        webManualState = d.agv.web_btn_manual   || false;
+        webEmgActive   = d.agv.web_btn_emergency || false;
+        applyWebBtnUi();
+      }
+
+      const sen = d.sensor || {};
+      document.getElementById('m-pos').textContent =
+        (sen.left_mm != null) ? sen.left_mm : '—';
+      setSenLamp('m-tape', sen.tape_detected);
+      setSenLamp('m-lm',   sen.left_marker);
+      setSenLamp('m-rm',   sen.right_marker);
+      setSenLamp('m-fail', sen.sensor_failure);
+
+      // Pusher panel — sync from server (handles page reload / multi-tab /
+      // the estop or a jog watchdog lapsing on its own).
+      setSenLamp('p-hooked', d.agv.trolley_hooked);
+      document.getElementById('p-status').textContent = d.agv.pusher_status || '—';
+      const serverEstop = !!d.agv.pusher_estop;
+      if (serverEstop !== pusherEstopActive) {
+        pusherEstopActive = serverEstop;
+        applyPusherEstopUi();
+      }
+    } catch(e) {
+      statusBar.className = 'warn';
+      statusBar.textContent = 'Connection lost — retrying...';
+    }
+  }
+
+  poll();
+  setInterval(poll, 500);
+</script>
+
+<nav id="nav-bar">
+  <a class="nav-btn" href="/">HOME</a>
+  <a class="nav-btn active" href="/manual">MANUAL</a>
+  <a class="nav-btn" href="/io">IO</a>
+  <a class="nav-btn" href="/params">PARAMS</a>
+  <a class="nav-btn errors-btn" href="/errors">ERRORS</a>
+</nav>
+</body>
+</html>
