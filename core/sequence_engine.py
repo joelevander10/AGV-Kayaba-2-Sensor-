@@ -483,6 +483,12 @@ class SequenceEngine:
                 logger.info("[SEQ] Trolley hooked confirmed")
                 return
             await asyncio.sleep(0.05)
+        # Fail-open exits REVERSE first: at C1 stop_reverse comes AFTER this
+        # step, so without this the generic timeout handler (which clears
+        # sequence_stop) would let the AGV resume backing up past C1.
+        if self._state.reverse_request:
+            self._state.reverse_request = False
+            logger.warning("[SEQ] wait_hooked timeout while reversing — ending REVERSE (forward next)")
         raise SequenceTimeout("wait_hooked")
 
     async def _act_stop_agv(self, p: dict):

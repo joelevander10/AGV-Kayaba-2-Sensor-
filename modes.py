@@ -373,6 +373,8 @@ async def reverse_mode(state, engine=None):
     last_valid_pv          = None
     deadline    = time.perf_counter() + config.REVERSE_TIMEOUT_S
     timed_out   = False
+    held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
+    held_remain = 0.0     # timeout budget left when the hold started
 
     logger.info("[REVERSE] START — backing out toward C1 (timeout %.0fs)",
                 config.REVERSE_TIMEOUT_S)
@@ -392,6 +394,30 @@ async def reverse_mode(state, engine=None):
                 last_valid_pv = None
                 await asyncio.sleep(config.DT)
                 continue
+
+            # ── Sequence stop — hold in place, still in REVERSE mode ──────────
+            # C1 stops the AGV here (stop_agv) and keeps REVERSE active while
+            # the pusher goes up; stop_reverse only runs once DI14 confirms.
+            # The safety timeout is frozen while held.
+            if state.sequence_stop:
+                if not held:
+                    logger.info("[REVERSE] Sequence stop — holding (brake).")
+                    await motion.set_brake(state)
+                    current_target_speed = 0.0
+                    pid.reset()
+                    last_valid_pv = None
+                    held_remain   = max(0.0, deadline - time.perf_counter())
+                    held = True
+                deadline = time.perf_counter() + held_remain
+                while not rev_queue.empty():
+                    rev_queue.get_nowait()
+                await asyncio.sleep(config.DT)
+                continue
+
+            if held:
+                logger.info("[REVERSE] Sequence stop ended — resuming reverse.")
+                await motion.set_reverse(state, 0.0)
+                held = False
 
             # ── Safety timeout — C1 never showed up ────────────────────────────
             if not timed_out and time.perf_counter() > deadline:
