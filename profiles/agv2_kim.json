@@ -38,19 +38,17 @@
     "DI_CALL_START": 4
   },
   "motor_channels": {
-    "_comment": "DO and AO channel indices for each motor drive",
+    "_comment": "DO and AO channel indices for each motor drive. do_alarm (DO3/DO7) dihapus — tidak dipakai, DO3 dan DO7 sekarang bebas.",
     "left": {
       "do_fwd": 0,
       "do_rev": 1,
       "do_brake": 2,
-      "do_alarm": 3,
       "ao_speed": 0
     },
     "right": {
       "do_fwd": 4,
       "do_rev": 5,
       "do_brake": 6,
-      "do_alarm": 7,
       "ao_speed": 1
     }
   },
