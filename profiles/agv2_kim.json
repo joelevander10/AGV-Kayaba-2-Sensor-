@@ -76,6 +76,8 @@
     "APPROACH_DECEL_RATE": 0.4
   },
   "pid_tuning": {
+    "_comment_error_sign": "Arah steering AUTO maju. -1 = konvensi awal, 1 = dibalik (dipakai karena PID terbalik: AGV belok menjauhi tape). Kalau jadi makin parah, balikin ke -1.",
+    "ERROR_SIGN_FORWARD": 1,
     "_comment_high": "HIGH speed gains — tuned for 1.0m/s with loaded trolley",
     "KP": 1.4,
     "TD": 0.12,

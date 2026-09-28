@@ -28,7 +28,10 @@ async def auto_mode(state, engine=None):
     """
     await motion.idle(state)
     await motion.set_forward(state, 0.0)
-    error_sign = -1.0            # e = -pv  (positive pv → steer left)
+    # Steering direction, from profile pid_tuning.ERROR_SIGN_FORWARD
+    # (-1.0 = e = -pv, original; +1.0 = flipped because the AGV steered away
+    # from the tape).
+    error_sign = config.ERROR_SIGN_FORWARD
 
     # Initialise PID with SLOW gains; forward mode will switch to HIGH on first
     # cycle if speed_mode == "HIGH".

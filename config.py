@@ -135,6 +135,10 @@ AUTO_TARGET_REVERSE_SPEED    = _params["speeds"].get("AUTO_TARGET_REVERSE_SPEED"
 REVERSE_TIMEOUT_S            = _params["speeds"].get("REVERSE_TIMEOUT_S", 30.0)
 
 # ── PID Tuning ────────────────────────────────────────────────────────────────
+# Steering direction for FORWARD auto: e = ERROR_SIGN_FORWARD * pv.
+# -1.0 = original convention; +1.0 flips P/I/D together if the AGV steers
+# AWAY from the tape instead of back onto it. Only -1.0 or +1.0.
+ERROR_SIGN_FORWARD = float(_params["pid_tuning"].get("ERROR_SIGN_FORWARD", -1.0))
 KP = _params["pid_tuning"]["KP"]
 TD = _params["pid_tuning"]["TD"]
 N  = _params["pid_tuning"]["N"]
@@ -381,6 +385,8 @@ def _validate():
     check(NUM_DI >= 0, f"NUM_DI must be >= 0 (got {NUM_DI})")
     check(NUM_DO >= 0, f"NUM_DO must be >= 0 (got {NUM_DO})")
     check(NUM_AO >= 0, f"NUM_AO must be >= 0 (got {NUM_AO})")
+    check(ERROR_SIGN_FORWARD in (-1.0, 1.0),
+          f"pid_tuning.ERROR_SIGN_FORWARD must be -1 or 1 (got {ERROR_SIGN_FORWARD})")
     if DI_CALL_START >= 0:
         check(DI_CALL_START < NUM_DI, f"DI_CALL_START must be in [0, {NUM_DI}) (got {DI_CALL_START})")
     if DO_AT_HOME >= 0:

@@ -872,7 +872,7 @@ function setBranch(branch) {
       : (d.error || 'ERROR');
     setTimeout(() => { st.textContent = ''; }, 4000);
   });
-});
+}
 
 function fetchWifi() {
   fetch('/api/wifi')
