@@ -46,9 +46,15 @@ def _build_di_names():
     for i, idx in enumerate(config.DI_BRANCH_SELECT):
         if 0 <= idx < config.NUM_DI:
             names[idx] = f"BRANCH {i + 1} SELECT"
-    for i, idx in enumerate(config.DI_TROLLEY_LIMIT):
-        if 0 <= idx < config.NUM_DI:
-            names[idx] = f"TROLLEY LIMIT {i + 1} (NC)"
+    _tl = config.DI_TROLLEY_LIMIT
+    if len(_tl) == 2 and _tl[0] == _tl[1]:
+        # Both switches wired (in parallel) onto one input.
+        if 0 <= _tl[0] < config.NUM_DI:
+            names[_tl[0]] = "TROLLEY LIMIT 1+2 (NC)"
+    else:
+        for i, idx in enumerate(_tl):
+            if 0 <= idx < config.NUM_DI:
+                names[idx] = f"TROLLEY LIMIT {i + 1} (NC)"
     if 0 <= config.DI_PUSHER_PROX_TOP < config.NUM_DI:
         names[config.DI_PUSHER_PROX_TOP] = "PUSHER PROX TOP"
     if 0 <= config.DI_PUSHER_PROX_BOTTOM < config.NUM_DI:
