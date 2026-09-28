@@ -324,12 +324,12 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu DI14 proximity atas (wait_hooked, timeout 30s), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Kalau wait_hooked timeout: REVERSE tetap diakhiri dan AGV jalan maju (fail-open). Tag placeholder: ganti 00C1.",
+      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu DI14 proximity atas (wait_hooked, timeout 30s), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Kalau wait_hooked timeout: REVERSE tetap diakhiri dan AGV jalan maju (fail-open). Tag placeholder: ganti 00CC.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
         "type": "rfid",
-        "rfid_tag": "00C1"
+        "rfid_tag": "00CC"
       },
       "actions": [
         {
