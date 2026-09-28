@@ -324,7 +324,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), tunggu 2 detik (wait_seconds), baru naikkan pusher otomatis (pusher_up), TUNGGU pusher sampai atas / trolley tersangkut (wait_hooked — gantiin wait_seconds 5.0 yang lama, lihat pusher.py) baru otomatis lanjut jalan (resume SLOW). CATATAN: wait_hooked timeout 30s masih fail-open (lihat docstring _act_wait_hooked di sequence_engine.py) — kalau mau hard-stop kalau gagal, kasih tau. HANYA aktif saat REVERSING (requires_mode reversing) — kalau lewat C1 pas RUNNING maju, tag ini diabaikan. Tag placeholder: ganti 00C1.",
+      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), tunggu 2 detik (wait_seconds), baru naikkan pusher otomatis (pusher_up), TUNGGU pusher sampai atas / trolley tersangkut (wait_hooked — gantiin wait_seconds 5.0 yang lama, lihat pusher.py) baru otomatis lanjut jalan maju (resume SLOW). Setelah itu tag C1 diabaikan 5 detik (cooldown_s 5.0). CATATAN: wait_hooked timeout 30s masih fail-open (lihat docstring _act_wait_hooked di sequence_engine.py) — kalau mau hard-stop kalau gagal, kasih tau. HANYA aktif saat REVERSING (requires_mode reversing) — kalau lewat C1 pas RUNNING maju, tag ini diabaikan. Tag placeholder: ganti 00C1.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
@@ -357,7 +357,7 @@
           "speed": "SLOW"
         }
       ],
-      "cooldown_s": 3.0,
+      "cooldown_s": 5.0,
       "requires_mode": "reversing"
     },
     {
