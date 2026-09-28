@@ -950,6 +950,10 @@ async def mode_manager(state, engine=None, manager=None):
             logger.info("REVERSE requested — switching AUTO forward to REVERSE.")
             await _cancel_active()
             await _flush_and_idle()
+            # Tag "1" stops the AGV (stop_agv) before start_reverse and never
+            # resumes it — clear that here so reverse_mode (which now honours
+            # sequence_stop for the C1 hold) actually starts backing up.
+            state.sequence_stop = False
             active_task        = asyncio.create_task(reverse_mode(state, engine=engine))
             current_mode       = "reversing"
             state.current_mode = current_mode
