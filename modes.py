@@ -941,7 +941,17 @@ async def mode_manager(state, engine=None, manager=None):
             # Normal completion: the C1 tag fired "stop_reverse", clearing the
             # flag. Resume AUTO forward to continue the route.
             logger.info("REVERSE complete — resuming AUTO forward.")
-            await _cancel_active()
+            # Cancel ONLY the reverse task — NOT the engine's sequence. The C1
+            # sequence that cleared reverse_request is still running (it goes
+            # on to wait_hooked → resume); cancelling it here would skip the
+            # hook wait. auto_mode starts held by sequence_stop until "resume".
+            if active_task:
+                active_task.cancel()
+                try:
+                    await active_task
+                except asyncio.CancelledError:
+                    pass
+                active_task = None
             await _flush_and_idle()
             active_task        = asyncio.create_task(auto_mode(state, engine=engine))
             current_mode       = "running"

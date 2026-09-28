@@ -462,7 +462,9 @@ class SequenceEngine:
         deadline = time.time() + timeout
         logger.info("[SEQ] Waiting for trolley hooked confirmation (timeout %.0fs)", timeout)
         while time.time() < deadline:
-            if self._state.current_mode != "running":
+            # "reversing" too: at C1 this starts while mode_manager is still
+            # switching REVERSING → RUNNING (stop_reverse just ran).
+            if self._state.current_mode not in ("running", "reversing"):
                 raise asyncio.CancelledError()
             if self._state.trolley_hooked:
                 logger.info("[SEQ] Trolley hooked confirmed")
