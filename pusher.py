@@ -55,10 +55,9 @@ Control sources, highest priority first
    (same convention as auto_mode/reverse_mode). De-energizes but leaves the
    in-progress phase alone (paused, not aborted) so it can resume once clear.
 3. state.pusher_jog_cmd ("up"|"down") — hold-to-run web control: drives
-   continuously while set, stops the instant it's cleared/expires. Still
-   respects top/bottom proximity as a hard stop even while held (added
-   defensively — not explicitly requested, but driving into the mechanical
-   end of travel indefinitely seemed like the wrong default). A fresh jog
+   continuously while set, stops the instant it's cleared/expires. IGNORES
+   the top/bottom proximity sensors — it drives for as long as the button
+   is held, whatever DI_PUSHER_PROX_TOP/BOTTOM read. A fresh jog
    command clears any pending full-travel request so an old command can't
    resume by surprise right after a manual jog.
    Watchdog: the browser must keep re-sending while the button is held
@@ -243,11 +242,14 @@ async def pusher_controller(state):
             # phase and resuming its old direction on its own.
             state.pusher_up_request   = False
             state.pusher_down_request = False
+            # Jog deliberately IGNORES the top/bottom proximity sensors — the
+            # operator is holding the button and watching the pin, so it
+            # drives for exactly as long as the button is held.
             if state.pusher_jog_cmd == "up":
-                _drive(state, up=not at_top, down=False)
+                _drive(state, up=True, down=False)
                 phase = "jog_up"
             else:
-                _drive(state, up=False, down=not at_bot)
+                _drive(state, up=False, down=True)
                 phase = "jog_down"
             state.pusher_status = phase
             await asyncio.sleep(_POLL_S)
