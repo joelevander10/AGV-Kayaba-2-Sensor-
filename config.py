@@ -311,6 +311,12 @@ PUSHER_MOVE_TIMEOUT_S = float(_pusher.get("MOVE_TIMEOUT_S", 15.0))
 # sensor are physically installed and verified. While false, DO8-11 only
 # ever move in response to an explicit button command (FULL UP/DOWN, JOG).
 PUSHER_AUTO_SEQUENCE_ENABLED = bool(_pusher.get("AUTO_SEQUENCE_ENABLED", False))
+# Temporary: ignore the trolley limit switches (DI_TROLLEY_LIMIT) completely.
+# trolley_hooked then means "pusher pin at top proximity" only, the
+# limit-switch auto sequence never runs, and a parked "hooked" pin is not
+# dropped back to idle by a limit switch. The pin is raised by an explicit
+# command instead (web button, or the "pusher_up" sequence action at C1).
+PUSHER_IGNORE_TROLLEY_LIMIT = bool(_pusher.get("IGNORE_TROLLEY_LIMIT", False))
 
 # ── Horn ──────────────────────────────────────────────────────────────────────
 # DO_AUTO: on for the duration of any autonomous motion (RUNNING or

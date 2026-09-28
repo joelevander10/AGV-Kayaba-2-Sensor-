@@ -150,6 +150,7 @@ def _auto_sequence_ready():
     config._validate) so a bad index can't slip through once enabled."""
     l0, l1 = config.DI_TROLLEY_LIMIT
     return (config.PUSHER_AUTO_SEQUENCE_ENABLED
+            and not config.PUSHER_IGNORE_TROLLEY_LIMIT
             and l0 >= 0 and l1 >= 0 and config.DI_PUSHER_PROX_TOP >= 0)
 
 
@@ -169,6 +170,9 @@ async def pusher_controller(state):
 
     logger.info("[Pusher] Started (limit=%s, prox_top=%s, prox_bottom=%s)",
                 config.DI_TROLLEY_LIMIT, config.DI_PUSHER_PROX_TOP, config.DI_PUSHER_PROX_BOTTOM)
+    if config.PUSHER_IGNORE_TROLLEY_LIMIT:
+        logger.warning("[Pusher] IGNORE_TROLLEY_LIMIT is on — trolley limit switches ignored; "
+                       "trolley_hooked = pusher at top proximity only.")
     if not _auto_sequence_ready():
         logger.warning("[Pusher] AUTO_SEQUENCE_ENABLED is off (or DI_TROLLEY_LIMIT/"
                         "DI_PUSHER_PROX_TOP unset) — autonomous hook sequence DISABLED. "
@@ -198,8 +202,12 @@ async def pusher_controller(state):
         at_bot = _prox(di, config.DI_PUSHER_PROX_BOTTOM)
         now    = time.monotonic()
 
-        # Physical truth, always live — see module docstring.
-        state.trolley_hooked = caught and at_top
+        # Physical truth, always live — see module docstring. With
+        # IGNORE_TROLLEY_LIMIT the limit switches drop out: pin at top = hooked.
+        if config.PUSHER_IGNORE_TROLLEY_LIMIT:
+            state.trolley_hooked = at_top
+        else:
+            state.trolley_hooked = caught and at_top
 
         # Jog watchdog: browser stopped refreshing (button released, dropped
         # connection, closed tab) — same pattern as web_manual_expire.
@@ -308,7 +316,7 @@ async def pusher_controller(state):
 
         elif phase == "hooked":
             _drive(state, up=False, down=False)
-            if not caught:
+            if not caught and not config.PUSHER_IGNORE_TROLLEY_LIMIT:
                 logger.warning("[Pusher] Limit switch re-asserted while hooked — un-hooking")
                 phase = "idle"
 

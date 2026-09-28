@@ -324,7 +324,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), TUNGGU trolley tersangkut (wait_hooked — gantiin wait_seconds 5.0 yang lama, lihat pusher.py) baru otomatis lanjut jalan (resume SLOW). CATATAN: wait_hooked timeout 30s masih fail-open (lihat docstring _act_wait_hooked di sequence_engine.py) — kalau mau hard-stop kalau gagal, kasih tau. HANYA aktif saat REVERSING (requires_mode reversing) — kalau lewat C1 pas RUNNING maju, tag ini diabaikan. Tag placeholder: ganti 00C1.",
+      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), naikkan pusher otomatis (pusher_up), TUNGGU pusher sampai atas / trolley tersangkut (wait_hooked — gantiin wait_seconds 5.0 yang lama, lihat pusher.py) baru otomatis lanjut jalan (resume SLOW). CATATAN: wait_hooked timeout 30s masih fail-open (lihat docstring _act_wait_hooked di sequence_engine.py) — kalau mau hard-stop kalau gagal, kasih tau. HANYA aktif saat REVERSING (requires_mode reversing) — kalau lewat C1 pas RUNNING maju, tag ini diabaikan. Tag placeholder: ganti 00C1.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
@@ -340,6 +340,9 @@
         },
         {
           "type": "set_ignore_1"
+        },
+        {
+          "type": "pusher_up"
         },
         {
           "type": "wait_hooked",
@@ -429,7 +432,9 @@
     "HOOK_DELAY_S": 2.0,
     "MOVE_TIMEOUT_S": 15.0,
     "_comment_auto": "AUTO_SEQUENCE_ENABLED: false selama limit switch/proximity belum beneran kepasang & keverifikasi ke hardware asli — DO8-11 cuma bisa nyala lewat tombol (FULL UP/DOWN, JOG) di /manual. Baru ganti ke true kalau DI_TROLLEY_LIMIT (9,10) dan DI_PUSHER_PROX_TOP (14) udah fisik terpasang dan sudah dicek bacaannya bener (caught cuma True pas trolley beneran nyangkut, bukan default nyala sendiri).",
-    "AUTO_SEQUENCE_ENABLED": false
+    "AUTO_SEQUENCE_ENABLED": false,
+    "_comment_ignore_limit": "SEMENTARA: limit switch trolley (DI 9,10) diabaikan total. trolley_hooked = pusher sudah di proximity atas (DI 14) saja. Pusher dinaikkan oleh aksi pusher_up di sequence C1 (atau tombol web). Ganti ke false kalau limit switch sudah terpasang & dicek.",
+    "IGNORE_TROLLEY_LIMIT": true
   },
   "horn": {
     "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",

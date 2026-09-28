@@ -82,6 +82,7 @@ class SequenceEngine:
             "go_home":           self._act_go_home,
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
+            "pusher_up":         self._act_pusher_up,
         }
 
     # ── Plugin point ─────────────────────────────────────────────────────────
@@ -441,6 +442,18 @@ class SequenceEngine:
                     return
             await asyncio.sleep(0.02)
         raise SequenceTimeout(f"wait_marker side={side}")
+
+    async def _act_pusher_up(self, p: dict):
+        """Command the pusher to full-travel UP — same path as the web FULL UP
+        button (pusher.py drives until DI_PUSHER_PROX_TOP or MOVE_TIMEOUT_S).
+        Doesn't wait; follow it with wait_hooked. Skipped if the pusher
+        e-stop is latched."""
+        if self._state.pusher_estop:
+            logger.warning("[SEQ] pusher_up skipped — pusher E-STOP is active")
+            return
+        self._state.pusher_down_request = False
+        self._state.pusher_up_request   = True
+        logger.info("[SEQ] Pusher UP requested")
 
     async def _act_wait_hooked(self, p: dict):
         """Block until pusher.py confirms the trolley hitch is caught AND the
