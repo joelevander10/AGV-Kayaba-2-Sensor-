@@ -495,6 +495,32 @@
     background: radial-gradient(circle at 38% 38%, #ff4040, #800000);
     box-shadow: 0 1px 0 #600000, 0 0 16px 4px #ff000088;
   }
+
+  /* ══════════════════════════════════════════════
+     AUTO REVERSE PANEL
+     ══════════════════════════════════════════════ */
+  #reverse-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #b8b4ac;
+    border-left: 1px solid #a0a0a0;
+    flex-shrink: 0;
+    width: 150px;
+    align-self: stretch;
+    justify-content: center;
+  }
+  .pbtn-rev-start { background: #e8b060; font-size: 12px; padding: 12px 2px; }
+  .pbtn-rev-stop  { font-size: 12px; padding: 12px 2px; }
+  .rev-msg {
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    min-height: 26px;
+    color: #000080;
+  }
 </style>
 </head>
 <body class="not-manual web-btn-off">
@@ -629,6 +655,14 @@
       <button class="pbtn" id="pbtn-jog-down">&#9660;<br>JOG DOWN</button>
     </div>
     <button class="pbtn pbtn-estop" id="pbtn-estop">PUSHER<br>E-STOP</button>
+  </div>
+
+  <!-- ── Auto reverse (PID tape-follow backwards) ── -->
+  <div id="reverse-panel">
+    <div class="pusher-title">AUTO REVERSE</div>
+    <button class="pbtn pbtn-rev-start" id="rbtn-start" disabled>&#9660;&#9660;<br>START<br>REVERSE</button>
+    <button class="pbtn pbtn-rev-stop" id="rbtn-stop" disabled>&#9632;<br>STOP</button>
+    <div class="rev-msg" id="rev-msg">Needs ARMED</div>
   </div>
 </div>
 
@@ -917,6 +951,46 @@
     if (pusherEstopActive && _jogBtn) jogStop(_jogBtn);
   }
 
+  // ── Auto reverse ──────────────────────────────────────────────────────────
+  // START only enabled in ARMED, STOP only while REVERSING (server re-checks
+  // both, plus tape under the reverse sensor, and replies with the reason).
+  const revStartBtn = document.getElementById('rbtn-start');
+  const revStopBtn  = document.getElementById('rbtn-stop');
+  const revMsg      = document.getElementById('rev-msg');
+  let   revMsgUntil = 0;
+
+  function postReverse(action) {
+    fetch('/api/reverse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    })
+    .then(r => r.json())
+    .then(d => {
+      revMsg.style.color = d.ok ? '#006000' : '#c00000';
+      revMsg.textContent = d.ok ? (action === 'start' ? 'REVERSE STARTED' : 'STOPPED')
+                                : (d.error || 'ERROR');
+      revMsgUntil = Date.now() + 4000;
+    })
+    .catch(() => {
+      revMsg.style.color = '#c00000';
+      revMsg.textContent = 'NO CONNECTION';
+      revMsgUntil = Date.now() + 4000;
+    });
+  }
+  revStartBtn.addEventListener('click', () => postReverse('start'));
+  revStopBtn.addEventListener('click',  () => postReverse('stop'));
+
+  function applyReverseUi(mode) {
+    revStartBtn.disabled = (mode !== 'armed');
+    revStopBtn.disabled  = (mode !== 'reversing');
+    if (Date.now() < revMsgUntil) return;
+    revMsg.style.color = '#000080';
+    revMsg.textContent = mode === 'reversing' ? 'REVERSING…'
+                       : mode === 'armed'     ? 'READY'
+                       : 'Needs ARMED';
+  }
+
   // ══════════════════════════════════════════════════════════════════════════════
   //  STATE POLLING
   // ══════════════════════════════════════════════════════════════════════════════
@@ -958,6 +1032,7 @@
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       applyMode(d.agv.mode);
+      applyReverseUi(d.agv.mode);
 
       // Sync web button state from server (handles page reload / multi-tab)
       const serverWbm = d.agv.web_button_mode;

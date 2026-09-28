@@ -257,6 +257,49 @@ def api_pusher_jog():
     return jsonify({"ok": True, "direction": direction})
 
 
+@app.route("/api/reverse", methods=["POST"])
+def api_reverse():
+    """AUTO REVERSE (PID tape-follow backwards) from the MANUAL page.
+    {"action": "start"} — only in ARMED, needs tape under the reverse sensor.
+    {"action": "stop"}  — only while REVERSING; drops back to ARMED."""
+    import config
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+
+    data   = request.get_json(silent=True) or {}
+    action = data.get("action")
+    mode   = _state.current_mode
+
+    if action == "start":
+        if mode != "armed":
+            return jsonify({"error": f"AGV must be ARMED (AUTO selector) to start reverse — now {mode}"}), 409
+        # Same sensor reverse_mode will follow: rear if fitted, else front.
+        if config.REAR_SENSOR_ENABLED:
+            raw   = _state.latest_rear_sensor
+            age   = (time.time() - _state.rear_can_last_rx) if _state.rear_can_last_rx else None
+            fresh = age is not None and age <= config.CAN_TIMEOUT
+            tape  = bool(raw) and fresh and raw.get("tape_detected", False)
+            which = "rear"
+        else:
+            raw   = _state.latest_sensor
+            tape  = bool(raw) and raw.get("tape_detected", False)
+            which = "front"
+        if not tape:
+            return jsonify({"error": f"no tape under the {which} sensor"}), 409
+        _state.web_reverse_start = True
+        logger.info("[Reverse] START requested via web MANUAL page")
+        return jsonify({"ok": True, "action": "start"})
+
+    if action == "stop":
+        if mode != "reversing":
+            return jsonify({"error": f"AGV is not reversing — now {mode}"}), 409
+        _state.web_reverse_stop = True
+        logger.info("[Reverse] STOP requested via web MANUAL page")
+        return jsonify({"ok": True, "action": "stop"})
+
+    return jsonify({"error": "action must be 'start' or 'stop'"}), 400
+
+
 @app.route("/api/pusher/estop", methods=["POST"])
 def api_pusher_estop():
     """Pusher-only emergency stop — latches until explicitly cleared. While

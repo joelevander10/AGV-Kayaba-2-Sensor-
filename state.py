@@ -161,6 +161,11 @@ class AMRState:
         self.di_queue     = asyncio.Queue()  # DI readings
         self.rfid_queue    = asyncio.Queue()  # RFID tag reads
         self.latest_rfid_tag: str | None = None  # last tag seen (hex string)
+        # One-shot pulses from the MANUAL page's AUTO REVERSE panel
+        # (POST /api/reverse). mode_manager consumes them: start only acts in
+        # ARMED, stop only in REVERSING; stale pulses are dropped elsewhere.
+        self.web_reverse_start = False
+        self.web_reverse_stop  = False
         self.sensor_queue = asyncio.Queue()  # CAN magnetic sensor readings (front)
         self.rear_sensor_queue = asyncio.Queue()  # CAN magnetic sensor readings (rear, REVERSE only)
 

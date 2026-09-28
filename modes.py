@@ -637,6 +637,8 @@ async def mode_manager(state, engine=None, manager=None):
         state.reverse_request     = False
         state.homepost_request    = False
         state.leaving_home        = False
+        state.web_reverse_start   = False
+        state.web_reverse_stop    = False
         state.call_run            = False   # next run is a normal run unless DI_CALL_START launches it
         # Don't touch state.trolley_hooked here — it reflects physical reality
         # (pusher.py keeps it live from the limit/prox sensors regardless of
@@ -701,6 +703,13 @@ async def mode_manager(state, engine=None, manager=None):
                     and bool(di[config.DI_CALL_START]))
         call_rising = btn_call and not last_call
         last_call   = btn_call
+
+        # Web AUTO REVERSE pulses (manual page). Consume once; a pulse that
+        # arrives in the wrong mode is simply dropped, never queued.
+        web_rev_start = state.web_reverse_start and current_mode == "armed"
+        web_rev_stop  = state.web_reverse_stop  and current_mode == "reversing"
+        state.web_reverse_start = False
+        state.web_reverse_stop  = False
 
         # Clear momentary web buttons after reading so they act as single pulses
         if state.web_button_mode:
@@ -858,6 +867,18 @@ async def mode_manager(state, engine=None, manager=None):
                 current_mode       = "running"
                 state.current_mode = current_mode
 
+        elif current_mode == "armed" and web_rev_start:
+            # AUTO REVERSE started from the web MANUAL page: PID tape-follow
+            # backwards (rear sensor) straight from ARMED. Ends like any
+            # reverse — at the C1 tag (stop_reverse → resumes AUTO forward),
+            # on REVERSE_TIMEOUT_S, or on RESET / web STOP (→ ARMED).
+            logger.info("WEB REVERSE — launching REVERSE mode from ARMED.")
+            state.reverse_request = True
+            state.at_homepost     = False
+            active_task        = asyncio.create_task(reverse_mode(state, engine=engine))
+            current_mode       = "reversing"
+            state.current_mode = current_mode
+
         elif current_mode == "armed" and state.calibration_request:
             # Open-loop wheel-speed calibration ramp. No tape needed (no PID /
             # tape-following): the runner drives both wheels straight and logs
@@ -901,8 +922,9 @@ async def mode_manager(state, engine=None, manager=None):
             current_mode       = "reversing"
             state.current_mode = current_mode
 
-        elif current_mode == "reversing" and reset_rising:
-            logger.info("RESET — aborting REVERSE, returning to ARMED.")
+        elif current_mode == "reversing" and (reset_rising or web_rev_stop):
+            logger.info("%s — aborting REVERSE, returning to ARMED.",
+                        "WEB STOP" if web_rev_stop else "RESET")
             await _cancel_active()
             await _flush_and_idle()
             _reset_sequence_state()
