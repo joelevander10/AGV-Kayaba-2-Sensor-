@@ -421,8 +421,8 @@
   },
   "pusher": {
     "_comment": "Pusher pin actuator (trolley hitch). DO_UP/DO_DOWN each drive 2 DO together. HOOK_DELAY_S = settle time after both DI_TROLLEY_LIMIT go OFF before pusher starts moving up. MOVE_TIMEOUT_S = jam guard (added defensively). DO_UP/DO_DOWN ditukar dari mapping awal [8,11]/[9,10] — actuator fisiknya kebalik (nyalain DO yang tadinya dikira UP malah nurunin pusher).",
-    "DO_UP": [12, 15],
-    "DO_DOWN": [13, 14],
+    "DO_UP": [13, 14],
+    "DO_DOWN": [12, 15],
     "HOOK_DELAY_S": 2.0,
     "MOVE_TIMEOUT_S": 15.0,
     "_comment_auto": "AUTO_SEQUENCE_ENABLED: false selama limit switch/proximity belum beneran kepasang & keverifikasi ke hardware asli — DO8-11 cuma bisa nyala lewat tombol (FULL UP/DOWN, JOG) di /manual. Baru ganti ke true kalau DI_TROLLEY_LIMIT (9,10) dan DI_PUSHER_PROX_TOP (14) udah fisik terpasang dan sudah dicek bacaannya bener (caught cuma True pas trolley beneran nyangkut, bukan default nyala sendiri).",
