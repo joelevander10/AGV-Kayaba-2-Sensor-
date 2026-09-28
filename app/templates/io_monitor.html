@@ -117,6 +117,61 @@
     box-shadow: 0 0 10px 2px #ffc00066, inset 0 1px 2px #ffffff44;
   }
 
+  /* ── IO test mode ── */
+  .test-btn {
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 4px 16px;
+    cursor: pointer;
+    background: #c0c0c0;
+    color: #000;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #404040;
+    border-bottom: 2px solid #404040;
+  }
+  .test-btn.on { background: #e07000; color: #fff; }
+  #test-banner {
+    display: none;
+    background: #e07000;
+    color: #fff;
+    font-weight: bold;
+    font-size: 17px;
+    letter-spacing: 1px;
+    padding: 8px 15px;
+    margin-bottom: 15px;
+  }
+  body.io-test #test-banner { display: block; }
+  #test-msg { margin-left: 12px; font-weight: normal; }
+
+  .do-ctl { display: none; gap: 4px; margin-right: 10px; }
+  body.io-test .do-ctl { display: flex; }
+  .do-ctl button {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    width: 54px;
+    height: 36px;
+    cursor: pointer;
+    background: #c0c0c0;
+    border-top:    2px solid #fff;
+    border-left:   2px solid #fff;
+    border-right:  2px solid #404040;
+    border-bottom: 2px solid #404040;
+  }
+  .do-ctl button:active {
+    border-top:    2px solid #404040;
+    border-left:   2px solid #404040;
+    border-right:  2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+  .do-ctl button.sel-on  { background: #40a040; color: #fff; }
+  .do-ctl button.sel-off { background: #606060; color: #fff; }
+  .do-ctl button.sel-auto { background: #000080; color: #fff; }
+  .io-row.forced .io-idx { background: #e07000; color: #fff; font-weight: bold; }
+
   /* ── Nav bar ── */
   #nav-bar {
     position: fixed;
@@ -152,8 +207,15 @@
 
 <div id="header" class="raised">
   <span class="title">AGV IO MONITOR</span>
+  <button id="test-btn" class="test-btn">IO TEST: OFF</button>
   <span id="mode-badge" class="mode-badge">MODE: —</span>
   <span id="ts">—</span>
+</div>
+
+<div id="test-banner">
+  IO TEST MODE — DO outputs forced from this page override the program. AUTO = give the pin back.
+  Exits automatically if the AGV starts RUNNING / REVERSING.
+  <span id="test-msg"></span>
 </div>
 
 <div class="columns">
@@ -179,6 +241,81 @@
 let diNames = [], doNames = [], numDi = 16, numDo = 16;
 let initialised = false;
 
+let testMode = false;
+let btnHoldUntil = 0;   // keep a confirm/error text on the button briefly
+let forced   = {};   // {"ch": true|false}
+
+function postJSON(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(r => r.json());
+}
+
+function showTestMsg(text, err) {
+  const m = document.getElementById('test-msg');
+  m.textContent = text || '';
+  m.style.color = err ? '#ffff80' : '#fff';
+  if (text) setTimeout(() => { if (m.textContent === text) m.textContent = ''; }, 4000);
+}
+
+function applyTestUi() {
+  document.body.classList.toggle('io-test', testMode);
+  const b = document.getElementById('test-btn');
+  b.classList.toggle('on', testMode);
+  if (Date.now() >= btnHoldUntil) b.textContent = 'IO TEST: ' + (testMode ? 'ON' : 'OFF');
+  for (let i = 0; i < numDo; i++) {
+    const f   = forced[String(i)];
+    const row = document.getElementById('do-row-' + i);
+    if (!row) continue;
+    row.classList.toggle('forced', f !== undefined);
+    row.querySelector('[data-v="on"]').className   = f === true      ? 'sel-on'   : '';
+    row.querySelector('[data-v="off"]').className  = f === false     ? 'sel-off'  : '';
+    row.querySelector('[data-v="auto"]').className = f === undefined ? 'sel-auto' : '';
+  }
+}
+
+document.getElementById('test-btn').addEventListener('click', () => {
+  if (!testMode && !confirmTest()) return;
+  postJSON('/api/io/test', { enable: !testMode })
+    .then(d => {
+      if (d.ok) { btnHoldUntil = 0; testMode = d.io_test_mode; if (!testMode) forced = {}; applyTestUi(); }
+      else alertMsg(d.error);
+    })
+    .catch(() => alertMsg('NO CONNECTION'));
+});
+
+function confirmTest() {
+  // Inline confirm instead of a browser dialog: first click arms, second
+  // click within 3 s enters test mode.
+  const b = document.getElementById('test-btn');
+  if (b.dataset.armed === '1') { b.dataset.armed = ''; return true; }
+  b.dataset.armed = '1';
+  b.textContent = 'CLICK AGAIN TO CONFIRM';
+  btnHoldUntil = Date.now() + 3000;
+  setTimeout(() => { b.dataset.armed = ''; applyTestUi(); }, 3000);
+  return false;
+}
+
+function alertMsg(text) {
+  const b = document.getElementById('test-btn');
+  b.textContent = text;
+  btnHoldUntil = Date.now() + 3000;
+  setTimeout(applyTestUi, 3000);
+}
+
+function setDo(ch, v) {
+  const value = v === 'on' ? true : v === 'off' ? false : null;
+  postJSON('/api/io/do', { channel: ch, value })
+    .then(d => {
+      if (!d.ok) { showTestMsg(d.error, true); return; }
+      if (value === null) delete forced[String(ch)]; else forced[String(ch)] = value;
+      applyTestUi();
+    })
+    .catch(() => showTestMsg('NO CONNECTION', true));
+}
+
 function buildPanel(panelId, count, names) {
   const panel = document.getElementById(panelId);
   panel.innerHTML = '';
@@ -187,10 +324,23 @@ function buildPanel(panelId, count, names) {
     const spare = name === '[SPARE]';
     const row   = document.createElement('div');
     row.className = 'io-row';
+    const ctl = panelId === 'do-panel'
+      ? `<span class="do-ctl">` +
+          `<button data-v="on">ON</button>` +
+          `<button data-v="off">OFF</button>` +
+          `<button data-v="auto">AUTO</button>` +
+        `</span>`
+      : '';
+    if (panelId === 'do-panel') row.id = 'do-row-' + i;
     row.innerHTML =
       `<span class="io-idx">${i}</span>` +
       `<span class="io-name${spare ? ' spare' : ''}">${name}</span>` +
+      ctl +
       `<span class="lamp" id="${panelId}-${i}"></span>`;
+    if (panelId === 'do-panel') {
+      row.querySelectorAll('.do-ctl button').forEach(btn =>
+        btn.addEventListener('click', () => setDo(i, btn.dataset.v)));
+    }
     panel.appendChild(row);
   }
 }
@@ -213,6 +363,11 @@ function fetchIO() {
       }
       d.di.forEach((v, i) => setLamp('di-panel-' + i, v));
       d.do.forEach((v, i) => setLamp('do-panel-' + i, v));
+      // Sync test mode / forced pins from the server (page reload, other
+      // tabs, or mode_manager auto-exiting test mode when the AGV starts).
+      testMode = !!d.io_test_mode;
+      forced   = d.do_forced || {};
+      applyTestUi();
       document.getElementById('ts').textContent = new Date().toLocaleTimeString();
     })
     .catch(() => { document.getElementById('ts').textContent = 'NO CONN'; });

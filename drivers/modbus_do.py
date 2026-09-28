@@ -20,6 +20,8 @@ class DOWriter(ActuatorDriver):
             # Snapshot the latest setpoints — collapses any backlog to the
             # newest value per channel (no stale replay after a reconnect).
             setpoints = dict(state.do_setpoints)
+            # IO test overrides (web IO page) win over the control code.
+            setpoints.update(state.do_override)
             try:
                 if not client.connected:
                     await client.connect()

@@ -384,7 +384,65 @@ def api_io():
         "do_names": _build_do_names(),
         "num_di":   config.NUM_DI,
         "num_do":   config.NUM_DO,
+        "io_test_mode": _state.io_test_mode,
+        "do_forced":    {str(k): v for k, v in _state.do_override.items()},
+        "mode":         _state.current_mode,
     })
+
+
+# ── IO TEST MODE (web IO page) ──────────────────────────────────────────────
+# Lets an operator force individual DO channels ON/OFF to check wiring.
+# Only allowed while the AGV is not driving itself; mode_manager also
+# force-exits test mode the moment it enters RUNNING/REVERSING/CALIBRATE.
+_IO_TEST_ALLOWED_MODES = ("armed", "manual", "emergency")
+
+@app.route("/api/io/test", methods=["POST"])
+def api_io_test():
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    data   = request.get_json(silent=True) or {}
+    enable = data.get("enable")
+    if not isinstance(enable, bool):
+        return jsonify({"error": "enable must be true or false"}), 400
+    if enable:
+        mode = _state.current_mode
+        if mode not in _IO_TEST_ALLOWED_MODES:
+            return jsonify({"error": f"IO test only in ARMED / MANUAL / EMERGENCY — now {mode}"}), 409
+        _state.io_test_mode = True
+        logger.warning("[IO TEST] ENTERED via web IO page (mode=%s)", mode)
+    else:
+        _state.io_test_mode = False
+        _state.clear_do_overrides()
+        logger.warning("[IO TEST] EXITED via web IO page — all DO overrides released")
+    return jsonify({"ok": True, "io_test_mode": _state.io_test_mode})
+
+
+@app.route("/api/io/do", methods=["POST"])
+def api_io_do():
+    """Force one DO: {"channel": n, "value": true|false|null}. null releases
+    the channel back to the program."""
+    import config
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    if not _state.io_test_mode:
+        return jsonify({"error": "turn IO TEST MODE on first"}), 409
+    data  = request.get_json(silent=True) or {}
+    ch    = data.get("channel")
+    value = data.get("value")
+    if not isinstance(ch, int) or isinstance(ch, bool) or not (0 <= ch < config.NUM_DO):
+        return jsonify({"error": f"channel must be 0..{config.NUM_DO - 1}"}), 400
+    if value is None:
+        if ch in _state.do_override:
+            _state.do_override.pop(ch)
+            _state.do_setpoints.setdefault(ch, False)
+        logger.info("[IO TEST] DO%d released to program", ch)
+    elif isinstance(value, bool):
+        _state.do_override[ch] = value
+        logger.info("[IO TEST] DO%d forced %s", ch, "ON" if value else "OFF")
+    else:
+        return jsonify({"error": "value must be true, false or null"}), 400
+    _state.do_dirty.set()
+    return jsonify({"ok": True, "channel": ch, "value": value})
 
 
 @app.route("/api/params")

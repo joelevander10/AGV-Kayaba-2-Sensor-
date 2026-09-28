@@ -166,6 +166,14 @@ class AMRState:
         # ARMED, stop only in REVERSING; stale pulses are dropped elsewhere.
         self.web_reverse_start = False
         self.web_reverse_stop  = False
+        # IO TEST MODE (web IO page). While io_test_mode is True, do_override
+        # {channel: bool} wins over whatever the control code asked for in
+        # do_setpoints — applied in the DO writer, so pusher/horn/motion keep
+        # running normally underneath and take back over the instant a channel
+        # is released. mode_manager force-exits test mode (clears everything)
+        # whenever the AGV enters RUNNING/REVERSING/CALIBRATE.
+        self.io_test_mode = False
+        self.do_override  = {}
         self.sensor_queue = asyncio.Queue()  # CAN magnetic sensor readings (front)
         self.rear_sensor_queue = asyncio.Queue()  # CAN magnetic sensor readings (rear, REVERSE only)
 
@@ -200,6 +208,14 @@ class AMRState:
     def set_ao(self, channel_no, voltage):
         self.ao_setpoints[channel_no] = voltage
         self.ao_dirty.set()
+
+    def clear_do_overrides(self):
+        """Drop every IO-test override and re-assert the program's own values.
+        A channel the program never drove falls back to OFF."""
+        for ch in list(self.do_override):
+            self.do_setpoints.setdefault(ch, False)
+        self.do_override.clear()
+        self.do_dirty.set()
 
     def set_do(self, channel_no, active_state):
         self.do_setpoints[channel_no] = bool(active_state)

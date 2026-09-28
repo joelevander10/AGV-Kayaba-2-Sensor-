@@ -704,6 +704,12 @@ async def mode_manager(state, engine=None, manager=None):
         call_rising = btn_call and not last_call
         last_call   = btn_call
 
+        # IO TEST MODE must never survive into autonomous motion.
+        if state.io_test_mode and current_mode in ("running", "reversing", "calibrate"):
+            state.io_test_mode = False
+            state.clear_do_overrides()
+            logger.warning("IO TEST MODE exited automatically — AGV is %s", current_mode)
+
         # Web AUTO REVERSE pulses (manual page). Consume once; a pulse that
         # arrives in the wrong mode is simply dropped, never queued.
         web_rev_start = state.web_reverse_start and current_mode == "armed"
