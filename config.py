@@ -122,6 +122,10 @@ WHEEL_CIRCUMFERENCE = 3.14159 * WHEEL_DIAMETER
 # ── Speeds ────────────────────────────────────────────────────────────────────
 MANUAL_TARGET_HIGH_SPEED     = _params["speeds"]["MANUAL_TARGET_HIGH_SPEED"]
 MANUAL_TARGET_SLOW_SPEED     = _params["speeds"]["MANUAL_TARGET_SLOW_SPEED"]
+# Manual jog ramps (m/s²): each wheel ramps toward its jog target instead of
+# jumping; releasing the button ramps down with MANUAL_DECEL_RATE.
+MANUAL_ACCEL_RATE            = _params["speeds"].get("MANUAL_ACCEL_RATE", _params["speeds"]["ACCEL_RATE"])
+MANUAL_DECEL_RATE            = _params["speeds"].get("MANUAL_DECEL_RATE", 0.8)
 AUTO_TARGET_HIGH_SPEED       = _params["speeds"]["AUTO_TARGET_HIGH_SPEED"]
 AUTO_TARGET_SLOW_SPEED       = _params["speeds"]["AUTO_TARGET_SLOW_SPEED"]
 AUTO_TARGET_APPROACH_SPEED   = _params["speeds"].get("AUTO_TARGET_APPROACH_SPEED", 0.1)
@@ -520,6 +524,8 @@ TUNABLE_SPECS = {   # key: (min, max)
     # Manual speeds
     "MANUAL_TARGET_HIGH_SPEED":       (0.0,   _MAX_SPEED_MPS),
     "MANUAL_TARGET_SLOW_SPEED":       (0.0,   _MAX_SPEED_MPS),
+    "MANUAL_ACCEL_RATE":              (0.01,  10.0),
+    "MANUAL_DECEL_RATE":              (0.01,  10.0),
     # PID gains — HIGH.  N >= 1: the derivative filter coefficient
     # alpha = dt / ((TD / N) + dt) degenerates as N -> 0.
     "KP":                             (0.0,   50.0),

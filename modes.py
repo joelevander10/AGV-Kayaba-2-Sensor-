@@ -603,7 +603,12 @@ async def manual_mode(state):
     Web remote (state.web_manual_command) takes priority over physical DI buttons.
     Emergency is fully owned by mode_manager — this task does not check it."""
     current_motion = None
-    last_rpms      = None   # (rpm_high, rpm_slow) actually commanded
+    # Signed per-wheel rpm actually commanded (+ fwd / − rev), ramped toward
+    # the jog target at MANUAL_ACCEL_RATE (speeding up) / MANUAL_DECEL_RATE
+    # (slowing down, stopping, or reversing through zero).
+    cur_l = cur_r = 0.0
+    last_out = None
+    last_t   = time.perf_counter()
 
     while True:
         # Target motor RPM for each speed; motion helpers convert to per-wheel
@@ -648,29 +653,57 @@ async def manual_mode(state):
             elif pb_right:               motion_state = "right"
             else:                        motion_state = "idle"
         else:
-            await asyncio.sleep(0.01)
-            continue
+            # No new DI frame and no web command: keep the last jog state so
+            # the ramp keeps running.
+            motion_state = current_motion or "idle"
 
-        # Re-issue on a speed change too, otherwise an edit made while a jog
-        # button is held would not take effect until it is released and pressed
-        # again.
-        rpms = (rpm_high, rpm_slow)
-        if motion_state != current_motion or rpms != last_rpms:
-            if motion_state != current_motion:
-                logger.debug("Manual: %s", motion_state.upper())
-            if   motion_state == "fwd_left":  await motion.set_forward_left(state, rpm_high, rpm_slow)
-            elif motion_state == "fwd_right": await motion.set_forward_right(state, rpm_high, rpm_slow)
-            elif motion_state == "rvs_left":  await motion.set_reverse_left(state, rpm_high, rpm_slow)
-            elif motion_state == "rvs_right": await motion.set_reverse_right(state, rpm_high, rpm_slow)
-            elif motion_state == "forward":   await motion.set_forward(state, rpm_high)
-            elif motion_state == "reverse":   await motion.set_reverse(state, rpm_high)
-            elif motion_state == "left":      await motion.set_left(state, rpm_slow)
-            elif motion_state == "right":     await motion.set_right(state, rpm_slow)
-            elif motion_state == "idle":      await motion.idle(state)
+        if motion_state != current_motion:
+            logger.debug("Manual: %s", motion_state.upper())
             current_motion = motion_state
-            last_rpms      = rpms
 
-        await asyncio.sleep(0.01)
+        # Signed per-wheel targets (left, right). Re-read every cycle so live
+        # speed edits from the params page apply while a button is held.
+        h, s = rpm_high, rpm_slow
+        tgt_l, tgt_r = {
+            "forward":   ( h,  h), "reverse":   (-h, -h),
+            "left":      (-s,  s), "right":     ( s, -s),
+            "fwd_left":  ( s,  h), "fwd_right": ( h,  s),
+            "rvs_left":  (-s, -h), "rvs_right": (-h, -s),
+        }.get(motion_state, (0.0, 0.0))
+
+        now_t  = time.perf_counter()
+        dt     = min(max(now_t - last_t, 0.0), 0.1)
+        last_t = now_t
+        up_step   = motion.mps_to_rpm(config.MANUAL_ACCEL_RATE) * dt
+        down_step = motion.mps_to_rpm(config.MANUAL_DECEL_RATE) * dt
+
+        def _ramp(cur, tgt):
+            # Speeding up = same sign and |tgt| > |cur|; anything else
+            # (slowing, stopping, reversing through zero) uses the decel step.
+            speeding_up = (cur == 0 or (cur > 0) == (tgt > 0)) and abs(tgt) > abs(cur)
+            step = up_step if speeding_up else down_step
+            if cur < tgt:
+                return min(cur + step, tgt)
+            return max(cur - step, tgt)
+
+        cur_l = _ramp(cur_l, tgt_l)
+        cur_r = _ramp(cur_r, tgt_r)
+
+        if cur_l == 0.0 and cur_r == 0.0 and tgt_l == 0.0 and tgt_r == 0.0:
+            out = "idle"
+            if out != last_out:
+                await motion.idle(state)
+        else:
+            # At exactly 0 rpm hold the direction of the target so the
+            # driver is already set the right way as the ramp starts.
+            l_cmd = cur_l if cur_l != 0.0 else (1e-9 if tgt_l >= 0 else -1e-9)
+            r_cmd = cur_r if cur_r != 0.0 else (1e-9 if tgt_r >= 0 else -1e-9)
+            out = (round(l_cmd, 1), round(r_cmd, 1))
+            if out != last_out:
+                await motion.set_wheels(state, l_cmd, r_cmd)
+        last_out = out
+
+        await asyncio.sleep(0.02)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
