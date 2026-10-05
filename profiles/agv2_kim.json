@@ -77,7 +77,7 @@
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
     "ACCEL_RATE": 0.2,
     "DECEL_RATE": 0.2, 
-    "APPROACH_DECEL_RATE": 0.4
+    "APPROACH_DECEL_RATE": 0.2
   },
   "pid_tuning": {
     "_comment_error_sign": "Arah steering AUTO maju. -1 = konvensi awal, 1 = dibalik (dipakai karena PID terbalik: AGV belok menjauhi tape). Kalau jadi makin parah, balikin ke -1.",
