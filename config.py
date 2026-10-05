@@ -127,6 +127,8 @@ MANUAL_TARGET_SLOW_SPEED     = _params["speeds"]["MANUAL_TARGET_SLOW_SPEED"]
 MANUAL_ACCEL_RATE            = _params["speeds"].get("MANUAL_ACCEL_RATE", _params["speeds"]["ACCEL_RATE"])
 MANUAL_DECEL_RATE            = _params["speeds"].get("MANUAL_DECEL_RATE", 0.8)
 AUTO_TARGET_HIGH_SPEED       = _params["speeds"]["AUTO_TARGET_HIGH_SPEED"]
+# MAX speed mode (set_speed "MAX", e.g. RFID 0018). Uses the HIGH PID gains.
+AUTO_TARGET_MAX_SPEED        = _params["speeds"].get("AUTO_TARGET_MAX_SPEED", AUTO_TARGET_HIGH_SPEED)
 AUTO_TARGET_SLOW_SPEED       = _params["speeds"]["AUTO_TARGET_SLOW_SPEED"]
 AUTO_TARGET_APPROACH_SPEED   = _params["speeds"].get("AUTO_TARGET_APPROACH_SPEED", 0.1)
 ACCEL_RATE                   = _params["speeds"]["ACCEL_RATE"]
@@ -406,6 +408,7 @@ def _validate():
         ("MANUAL_TARGET_HIGH_SPEED", MANUAL_TARGET_HIGH_SPEED),
         ("MANUAL_TARGET_SLOW_SPEED", MANUAL_TARGET_SLOW_SPEED),
         ("AUTO_TARGET_HIGH_SPEED",   AUTO_TARGET_HIGH_SPEED),
+        ("AUTO_TARGET_MAX_SPEED",    AUTO_TARGET_MAX_SPEED),
         ("AUTO_TARGET_SLOW_SPEED",   AUTO_TARGET_SLOW_SPEED),
         ("AUTO_TARGET_APPROACH_SPEED",   AUTO_TARGET_APPROACH_SPEED),
         ("AUTO_TARGET_REVERSE_SPEED",    AUTO_TARGET_REVERSE_SPEED),
@@ -515,6 +518,7 @@ _validate()
 TUNABLE_SPECS = {   # key: (min, max)
     # Auto speeds and ramp rates
     "AUTO_TARGET_HIGH_SPEED":         (0.0,   _MAX_SPEED_MPS),
+    "AUTO_TARGET_MAX_SPEED":          (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_SLOW_SPEED":         (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_APPROACH_SPEED":     (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_REVERSE_SPEED":      (0.0,   _MAX_SPEED_MPS),

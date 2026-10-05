@@ -514,6 +514,7 @@ def api_params():
             "Manual High (m/s)":          config.MANUAL_TARGET_HIGH_SPEED,
             "Manual Slow (m/s)":          config.MANUAL_TARGET_SLOW_SPEED,
             "Auto High (m/s)":            config.AUTO_TARGET_HIGH_SPEED,
+            "Auto Max (m/s)":             config.AUTO_TARGET_MAX_SPEED,
             "Auto Slow (m/s)":            config.AUTO_TARGET_SLOW_SPEED,
             "Auto Approach (m/s)":        config.AUTO_TARGET_APPROACH_SPEED,
             "Accel Rate (m/s²)":          config.ACCEL_RATE,

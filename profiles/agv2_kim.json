@@ -71,6 +71,7 @@
     "MANUAL_ACCEL_RATE": 0.8,
     "MANUAL_DECEL_RATE": 0.8,
     "AUTO_TARGET_HIGH_SPEED": 0.6,
+    "AUTO_TARGET_MAX_SPEED": 1.0,
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
     "ACCEL_RATE": 0.2,
@@ -158,6 +159,22 @@
         {
           "type": "set_speed",
           "speed": "HIGH"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "MAX speed zone — RFID 0018: kecepatan naik ke AUTO_TARGET_MAX_SPEED (1.0 m/s), pakai gain PID HIGH. Tag placeholder: ganti 0018 dengan hex tag sebenarnya.",
+      "name": "speed_zone_max",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0018"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "MAX"
         }
       ],
       "cooldown_s": 0.0,

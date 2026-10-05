@@ -149,6 +149,8 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_APPROACH_SPEED
             elif state.speed_mode == "SLOW":
                 target_speed = config.AUTO_TARGET_SLOW_SPEED
+            elif state.speed_mode == "MAX":
+                target_speed = config.AUTO_TARGET_MAX_SPEED
             else:
                 target_speed = config.AUTO_TARGET_HIGH_SPEED
             # Lidar caps (never raises the speed).
@@ -163,7 +165,7 @@ async def auto_mode(state, engine=None):
             # Only switch gains when speed_mode actually changes — avoids
             # redundant recomputation of the derivative filter coefficient.
             if state.speed_mode != last_speed_mode:
-                if state.speed_mode == "HIGH":
+                if state.speed_mode in ("HIGH", "MAX"):
                     pid.update_gains(config.KP, config.TD, config.N,
                                      config.V_RED_COEF,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,
