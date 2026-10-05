@@ -151,6 +151,8 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_SLOW_SPEED
             elif state.speed_mode == "MAX":
                 target_speed = config.AUTO_TARGET_MAX_SPEED
+            elif state.speed_mode == "MEDIUM":
+                target_speed = config.AUTO_TARGET_MEDIUM_SPEED
             else:
                 target_speed = config.AUTO_TARGET_HIGH_SPEED
             # Lidar caps (never raises the speed).

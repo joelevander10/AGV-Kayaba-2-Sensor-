@@ -72,6 +72,7 @@
     "MANUAL_DECEL_RATE": 0.8,
     "AUTO_TARGET_HIGH_SPEED": 0.6,
     "AUTO_TARGET_MAX_SPEED": 1.0,
+    "AUTO_TARGET_MEDIUM_SPEED": 0.4,
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
     "ACCEL_RATE": 0.2,
@@ -175,6 +176,22 @@
         {
           "type": "set_speed",
           "speed": "MAX"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "MEDIUM speed zone — RFID 0015: kecepatan ke AUTO_TARGET_MEDIUM_SPEED (0.4 m/s), pakai gain PID SLOW. Tag placeholder: ganti 0015 dengan hex tag sebenarnya.",
+      "name": "speed_zone_medium",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0015"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "MEDIUM"
         }
       ],
       "cooldown_s": 0.0,
