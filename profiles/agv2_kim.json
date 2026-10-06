@@ -73,6 +73,7 @@
     "AUTO_TARGET_HIGH_SPEED": 0.6,
     "AUTO_TARGET_MAX_SPEED": 1.0,
     "AUTO_TARGET_MEDIUM_SPEED": 0.4,
+    "AUTO_TARGET_APPROACH_SPEED": 0.1,
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
     "ACCEL_RATE": 0.2,
@@ -192,6 +193,22 @@
         {
           "type": "set_speed",
           "speed": "MEDIUM"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "APPROACH speed zone — RFID 0012: kecepatan maju ke AUTO_TARGET_APPROACH_SPEED (0.1 m/s), turun pelan pakai APPROACH_DECEL_RATE, pakai gain PID APPROACH. Hanya AUTO maju. Tag placeholder: ganti 0012 dengan hex tag sebenarnya.",
+      "name": "speed_zone_approach",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0012"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "APPROACH"
         }
       ],
       "cooldown_s": 0.0,
