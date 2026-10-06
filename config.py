@@ -21,6 +21,8 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 AGV_ID = os.environ.get("AGV_ID", "agv1_kim")
 print(AGV_ID)
 _profile_path   = os.path.join(_dir, "profiles", f"{AGV_ID}.json")
+# Engineer password hash for the web HMI's protected functions (see engineer_auth.py).
+ENGINEER_AUTH_FILE = os.environ.get("AGV_ENGINEER_AUTH", os.path.join(_dir, "engineer_auth.json"))
 _fallback_path  = os.path.join(_dir, "parameters.json")
 
 if os.path.exists(_profile_path):

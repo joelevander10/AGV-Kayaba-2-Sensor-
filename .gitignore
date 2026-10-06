@@ -6,3 +6,7 @@ analysis_plot/
 _backup/
 # Nuitka release build output
 build/
+
+# Engineer password hash (per machine, never commit)
+engineer_auth.json
+engineer_auth.json.tmp

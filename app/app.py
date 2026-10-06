@@ -13,7 +13,16 @@ import re
 import subprocess
 import time
 import threading
-from flask import Flask, render_template, jsonify, request
+import functools
+import secrets
+import sys
+from flask import Flask, render_template, jsonify, request, session
+# Make the project root importable even when this file is started from the
+# app/ folder or by an editor (engineer_auth, logger and config live there).
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+import engineer_auth
 from logger import get_error_log
 import logging
 
@@ -22,6 +31,64 @@ logger = logging.getLogger(__name__)
 # Flask looks for templates relative to the app.py file location
 _here = os.path.dirname(os.path.abspath(__file__))
 app   = Flask(__name__, template_folder=os.path.join(_here, "templates"))
+# Session cookie for the engineer login. A fresh random key per start means
+# every login ends when the controller restarts.
+app.secret_key = secrets.token_bytes(32)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Strict")
+
+# ── Engineer login (protects tuning / IO test / bypass / calibration) ────────
+ENGINEER_SESSION_S = 30 * 60
+_login_fail = {"count": 0, "locked_until": 0.0}
+
+def _engineer_ok():
+    return session.get("eng_until", 0) > time.time()
+
+def _locked_response():
+    return jsonify({"error": "Engineer login required — tap ENGINEER in the bottom bar.",
+                    "locked": True}), 401
+
+def engineer_required(fn):
+    @functools.wraps(fn)
+    def wrapper(*a, **k):
+        if not _engineer_ok():
+            return _locked_response()
+        return fn(*a, **k)
+    return wrapper
+
+
+@app.route("/api/engineer/status")
+def api_engineer_status():
+    remaining = max(0, int(session.get("eng_until", 0) - time.time()))
+    return jsonify({"logged_in": remaining > 0, "remaining_s": remaining,
+                    "password_set": engineer_auth.is_set()})
+
+
+@app.route("/api/engineer/login", methods=["POST"])
+def api_engineer_login():
+    now = time.time()
+    if now < _login_fail["locked_until"]:
+        return jsonify({"error": f"Too many wrong passwords — wait {int(_login_fail['locked_until'] - now)} s."}), 429
+    if not engineer_auth.is_set():
+        return jsonify({"error": "No engineer password set on this AGV yet."}), 409
+    data = request.get_json(silent=True) or {}
+    if engineer_auth.verify(data.get("password", "")):
+        _login_fail["count"] = 0
+        session["eng_until"] = now + ENGINEER_SESSION_S
+        logger.warning("[ENGINEER] login from %s", request.remote_addr)
+        return jsonify({"ok": True, "remaining_s": ENGINEER_SESSION_S})
+    _login_fail["count"] += 1
+    time.sleep(1.0)                           # slow down guessing
+    if _login_fail["count"] >= 5:
+        _login_fail["count"] = 0
+        _login_fail["locked_until"] = time.time() + 60
+        logger.warning("[ENGINEER] 5 wrong passwords from %s — login blocked 60 s", request.remote_addr)
+    return jsonify({"error": "Wrong password."}), 403
+
+
+@app.route("/api/engineer/logout", methods=["POST"])
+def api_engineer_logout():
+    session.pop("eng_until", None)
+    return jsonify({"ok": True})
 
 _state   = None   # set once by run_server()
 _engine  = None   # set once by run_server()
@@ -422,6 +489,8 @@ def api_io_test():
     enable = data.get("enable")
     if not isinstance(enable, bool):
         return jsonify({"error": "enable must be true or false"}), 400
+    if enable and not _engineer_ok():
+        return _locked_response()
     if enable:
         mode = _state.current_mode
         if mode not in _IO_TEST_ALLOWED_MODES:
@@ -436,6 +505,7 @@ def api_io_test():
 
 
 @app.route("/api/io/do", methods=["POST"])
+@engineer_required
 def api_io_do():
     """Force one DO: {"channel": n, "value": true|false|null}. null releases
     the channel back to the program."""
@@ -464,6 +534,7 @@ def api_io_do():
 
 
 @app.route("/api/params")
+@engineer_required
 def api_params():
     import config, math
     return jsonify({
@@ -620,6 +691,7 @@ def api_params():
 
 
 @app.route("/api/params/features", methods=["POST"])
+@engineer_required
 def api_set_features():
     import config
     if _state is None:
@@ -678,6 +750,7 @@ def _tuning_values(config):
 
 
 @app.route("/api/params/tuning", methods=["GET", "POST"])
+@engineer_required
 def api_tuning():
     import config, math
 
@@ -725,6 +798,7 @@ def api_tuning():
 
 
 @app.route("/api/params/tuning/reset", methods=["POST"])
+@engineer_required
 def api_tuning_reset():
     import config
 
@@ -743,13 +817,16 @@ _RESTART_CMD = ["/usr/bin/systemctl", "restart", "agv-controller.service"]
 
 @app.route("/api/web_button/mode", methods=["POST"])
 def api_web_button_mode():
-    """Enable or disable web button bypass mode."""
+    """Enable or disable web button bypass mode. Enabling needs the engineer
+    login; disabling (back to the physical panel) is always allowed."""
     if _state is None:
         return jsonify({"error": "state not initialised"}), 503
     data = request.get_json(silent=True) or {}
     enable = data.get("enable")
     if not isinstance(enable, bool):
         return jsonify({"error": "enable must be true or false"}), 400
+    if enable and not _engineer_ok():
+        return _locked_response()
     _state.web_button_mode = enable
     if not enable:
         _state.web_btn_start     = False
@@ -841,6 +918,7 @@ def api_calibration_status():
 
 
 @app.route("/api/calibration/start", methods=["POST"])
+@engineer_required
 def api_calibration_start():
     """Start the open-loop calibration ramp. Allowed only from ARMED (AUTO
     selector, safe, not running/manual/emergency)."""

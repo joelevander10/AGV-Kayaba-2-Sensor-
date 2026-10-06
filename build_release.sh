@@ -15,6 +15,7 @@
 #    5. Writes /etc/systemd/system/agv-controller.service (the old one, if any,
 #       is backed up first) and the sudoers rule the HMI restart button needs.
 #    6. Starts the service and checks the web API answers.
+#    7. Asks for the web engineer password on the first install (kept on rebuilds).
 #
 #  It does NOT delete your source code. Delete it yourself only after the
 #  release has been tested on the AGV — the checklist printed at the end shows how.
@@ -123,6 +124,7 @@ if systemctl list-unit-files "${SERVICE_NAME}" &>/dev/null && systemctl is-activ
   sudo systemctl stop "${SERVICE_NAME}"
   ok "Stopped running ${SERVICE_NAME}"
 fi
+BACKUP=""
 if [[ -d "${RELEASE_DIR}" ]]; then
   BACKUP="${RELEASE_DIR}.old-$(date +%Y%m%d-%H%M%S)"
   sudo mv "${RELEASE_DIR}" "${BACKUP}"
@@ -131,6 +133,11 @@ fi
 sudo mkdir -p "${RELEASE_DIR}"
 sudo cp -a "${DIST_DIR}/." "${RELEASE_DIR}/"
 sudo mkdir -p "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot"
+# Keep the engineer password from the previous release.
+if [[ -n "${BACKUP}" ]] && sudo test -f "${BACKUP}/engineer_auth.json"; then
+  sudo cp -a "${BACKUP}/engineer_auth.json" "${RELEASE_DIR}/engineer_auth.json"
+  ok "Engineer password carried over from the previous release"
+fi
 
 # root owns everything; the service group may read/execute; nobody else sees it.
 sudo chown -R root:"${SERVICE_USER}" "${RELEASE_DIR}"
@@ -209,7 +216,16 @@ else
   echo "    (could not reach http://127.0.0.1:${WEB_PORT}/api/state yet — check in a browser)"
 fi
 
-# ── 8. Checklist ─────────────────────────────────────────────────────────────
+# ── 8. Engineer password (web HMI lock) ─────────────────────────────────────
+if ! sudo test -f "${RELEASE_DIR}/engineer_auth.json"; then
+  say "Set the engineer password for the web dashboard (PARAMS, IO TEST, bypass, calibration)"
+  sudo AGV_ID="${AGV_ID}" "${RELEASE_DIR}/main.bin" --set-engineer-password \
+    || echo "    (not set — run later: sudo AGV_ID=${AGV_ID} ${RELEASE_DIR}/main.bin --set-engineer-password)"
+else
+  ok "Engineer password is set"
+fi
+
+# ── 9. Checklist ─────────────────────────────────────────────────────────────
 cat <<EOF
 
 $(printf '\033[1;32m')Release installed.$(printf '\033[0m')
@@ -218,6 +234,8 @@ $(printf '\033[1;32m')Release installed.$(printf '\033[0m')
   Profile  : ${RELEASE_DIR}/profiles/${AGV_ID}.json
   Logs     : ${RELEASE_DIR}/logs        live: sudo journalctl -u ${SERVICE_NAME} -f
   Control  : sudo systemctl {status|restart|stop} ${SERVICE_NAME}
+  Engineer : change the web password with
+             sudo AGV_ID=${AGV_ID} ${RELEASE_DIR}/main.bin --set-engineer-password
 
   BEFORE HANDING OVER — test AUTO, reverse + CC hitch, pusher, lidar and every
   web page on the real AGV. Then remove everything readable:

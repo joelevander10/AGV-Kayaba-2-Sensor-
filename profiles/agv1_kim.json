@@ -1,17 +1,15 @@
 {
-  "_agv_id": "agv1_kim",
-  "_description": "AGV1 KIM2A — primary unit",
-
+  "_agv_id": "agv2_kim",
+  "_description": "AGV2 KIM2A — primary unit",
   "networking": {
-    "LOCAL_IP": "192.168.2.100",
+    "LOCAL_IP": "192.168.2.20",
     "DIO_IP": "192.168.1.31",
     "AO_IP": "192.168.1.30",
     "MODBUS_PORT": 502,
     "DEVICE_ID": 1,
-    "RFID_IP": "192.168.5.10",
+    "RFID_IP": "192.168.3.200",
     "RFID_PORT": 2022
   },
-
   "io_mapping": {
     "DI_FLIPPED": 1,
     "DI_BASE": 0,
@@ -21,28 +19,38 @@
     "AO_BASE": 4096,
     "NUM_AO": 2,
     "DI_EMERGENCY": 3,
-    "DI_FWD": 4,
-    "DI_REV": 5,
-    "DI_LEFT": 6,
-    "DI_RIGHT": 7,
+    "_comment_pendant": "Pendant manual FWD/REV/LEFT/RIGHT belum dipakai (belum wired) — di-set -1 (unused) supaya DI 4-7 bebas dipakai ulang. Manual jog untuk sementara hanya lewat web remote (state.web_manual_command).",
+    "DI_FWD": -1,
+    "DI_REV": -1,
+    "DI_LEFT": -1,
+    "DI_RIGHT": -1,
     "DI_MODE_SWITCH": 2,
     "DI_START": 0,
-    "DI_RESET": 1
+    "DI_RESET": 1,
+    "_comment_branch": "4 tombol fisik pemilihan cabang tujuan, digeser ke DI 5-8 (DI 8-11 lama tabrakan sama trolley limit yang pindah ke 9-10). Index 0->TITIK 1, 1->TITIK 2, 2->TITIK 3, 3->TITIK 4. Kalau ditekan saat ARMED, AGV langsung START AUTO ke cabang itu (butuh tape terdeteksi, run normal, tidak berhenti di B0). Di mode lain cuma memilih cabang.",
+    "DI_BRANCH_SELECT": [5, 6, 7, 8],
+    "_comment_trolley": "2 limit switch NC (normally closed) di trolley hitch — True=belum tersangkut, False=tersangkut. Dipakai saat mundur. Kedua limit switch sekarang digabung ke DI 9 (wiring PARALEL: DI 9 baru berubah kalau DUA-DUANYA tersangkut), jadi [9, 9]. DI 10 sekarang bebas.",
+    "DI_TROLLEY_LIMIT": [9, 9],
+    "_comment_pusher_prox": "Proximity atas/bawah pusher pin — deteksi posisi pusher.",
+    "DI_PUSHER_PROX_TOP": 14,
+    "DI_PUSHER_PROX_BOTTOM": 15,
+    "_comment_call_start": "DI4 = CALL START. Rising edge starts AUTO, tapi HANYA kalau AGV lagi di homepost (DO_AT_HOME nyala) dan mode ARMED. Run yang di-start dari DI4 akan berhenti di RFID B0 (sequence stop_at_b0). -1 = tidak dipakai.",
+    "DI_CALL_START": 4,
+    "_comment_reverse_marker": "DI10 = marker stop presisi, HANYA dibaca saat REVERSING (rising edge). Menjalankan sequence stop_at_c1 yang sama dengan RFID CC — mana yang duluan (marker atau CC) yang dipakai. -1 = tidak dipakai.",
+    "DI_REVERSE_MARKER": 10
   },
   "motor_channels": {
-    "_comment": "DO and AO channel indices for each motor drive",
+    "_comment": "DO and AO channel indices for each motor drive. do_alarm (DO3/DO7) dihapus — tidak dipakai, DO3 dan DO7 sekarang bebas.",
     "left": {
       "do_fwd": 0,
       "do_rev": 1,
       "do_brake": 2,
-      "do_alarm": 3,
       "ao_speed": 0
     },
     "right": {
       "do_fwd": 4,
       "do_rev": 5,
       "do_brake": 6,
-      "do_alarm": 7,
       "ao_speed": 1
     }
   },
@@ -60,13 +68,22 @@
   "speeds": {
     "MANUAL_TARGET_HIGH_SPEED": 0.4,
     "MANUAL_TARGET_SLOW_SPEED": 0.2,
-    "AUTO_TARGET_HIGH_SPEED": 0.4,
+    "MANUAL_ACCEL_RATE": 0.8,
+    "MANUAL_DECEL_RATE": 0.8,
+    "AUTO_TARGET_HIGH_SPEED": 0.6,
+    "AUTO_TARGET_MAX_SPEED": 1.0,
+    "AUTO_TARGET_MEDIUM_SPEED": 0.4,
+    "AUTO_TARGET_APPROACH_SPEED": 0.1,
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
-    "ACCEL_RATE": 0.8
+    "ACCEL_RATE": 0.2,
+    "DECEL_RATE": 0.2, 
+    "APPROACH_DECEL_RATE": 0.2
   },
   "pid_tuning": {
-    "_comment_high": "HIGH speed gains — tuned for 0.4m/s with loaded trolley",
+    "_comment_error_sign": "Arah steering AUTO maju. -1 = konvensi awal, 1 = dibalik (dipakai karena PID terbalik: AGV belok menjauhi tape). Kalau jadi makin parah, balikin ke -1.",
+    "ERROR_SIGN_FORWARD": 1,
+    "_comment_high": "HIGH speed gains — tuned for 1.0m/s with loaded trolley",
     "KP": 1.4,
     "TD": 0.12,
     "N": 20,
@@ -96,7 +113,10 @@
     "CAN_NODE_ID": 6,
     "_comment_limits": "Reject |left_mm|>SENSOR_MAX_MM; clamp per-cycle jumps > SENSOR_MAX_STEP_MM",
     "SENSOR_MAX_MM": 100.0,
-    "SENSOR_MAX_STEP_MM": 40.0
+    "SENSOR_MAX_STEP_MM": 40.0,
+    "_comment_rear": "Rear MGS1600 (REVERSE mode only) — same CAN bus, node 7. COB_ID = 0x180 + node_id (CANopen TPDO1), same formula as the front sensor (390 = 0x180+6).",
+    "REAR_CAN_NODE_ID": 7,
+    "REAR_SENSOR_COB_ID": 391
   },
   "rfid": {
     "RFID_INIT_CMD_HEX": "CFFF0070002415",
@@ -147,6 +167,54 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "MAX speed zone — RFID 0018: kecepatan naik ke AUTO_TARGET_MAX_SPEED (1.0 m/s), pakai gain PID HIGH. Tag placeholder: ganti 0018 dengan hex tag sebenarnya.",
+      "name": "speed_zone_max",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0018"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "MAX"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "MEDIUM speed zone — RFID 0015: kecepatan ke AUTO_TARGET_MEDIUM_SPEED (0.4 m/s), pakai gain PID SLOW. Tag placeholder: ganti 0015 dengan hex tag sebenarnya.",
+      "name": "speed_zone_medium",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0015"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "MEDIUM"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "APPROACH speed zone — RFID 0012: kecepatan maju ke AUTO_TARGET_APPROACH_SPEED (0.1 m/s), turun pelan pakai APPROACH_DECEL_RATE, pakai gain PID APPROACH. Hanya AUTO maju. Tag placeholder: ganti 0012 dengan hex tag sebenarnya.",
+      "name": "speed_zone_approach",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0012"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "APPROACH"
+        }
+      ],
+      "cooldown_s": 0.0,
+      "requires_mode": "running"
+    },
+    {
       "_comment": "Timed checkpoint stop — RFID-only trigger",
       "name": "checkpoint_stop",
       "trigger": {
@@ -156,14 +224,15 @@
       "actions": [
         {
           "type": "sequence_stop",
-          "duration": 4.0
+          "duration": 4.0,
+          "resume_speed": "SLOW"
         }
       ],
       "cooldown_s": 0.0,
       "requires_mode": "running"
     },
     {
-      "_comment": "Cabang ke TITIK 1 — hanya bereaksi kalau active_branch == '1' (dipilih dari HMI sebelum START). Tag placeholder: ganti 00AA dengan hex tag sebenarnya. Isi 'actions' sesuai aksi fisik jalur ini (mis. set_track) setelah ditentukan.",
+      "_comment": "Cabang ke TITIK 1 — hanya bereaksi kalau active_branch == '1' (dipilih dari tombol fisik DI_BRANCH_SELECT[0] sebelum START). Slow-down ke SLOW ditambahkan di sini juga (lihat DECEL_RATE di 'speeds'). Tag placeholder: ganti 00AA dengan hex tag sebenarnya kalau belum sesuai.",
       "name": "branch_titik_1",
       "category": "navigation",
       "trigger": {
@@ -173,15 +242,19 @@
       "requires_branch": "1",
       "actions": [
         {
+          "type": "set_speed",
+          "speed": "SLOW"
+        },
+        {
           "type": "set_track",
-          "side": "right"
+          "side": "left"
         }
       ],
       "cooldown_s": 5.0,
       "requires_mode": "running"
     },
     {
-      "_comment": "Cabang ke TITIK 2 — hanya bereaksi kalau active_branch == '2'. Tag placeholder: ganti 00AB.",
+      "_comment": "Cabang ke TITIK 2 — hanya bereaksi kalau active_branch == '2' (tombol DI_BRANCH_SELECT[1]). Tag placeholder: ganti 00AB.",
       "name": "branch_titik_2",
       "category": "navigation",
       "trigger": {
@@ -191,8 +264,52 @@
       "requires_branch": "2",
       "actions": [
         {
+          "type": "set_speed",
+          "speed": "SLOW"
+        },
+        {
           "type": "set_track",
           "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track left (sama seperti TITIK 1).",
+      "name": "branch_titik_3",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AC"
+      },
+      "requires_branch": "3",
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "SLOW"
+        },
+        {
+          "type": "set_track",
+          "side": "left"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Cabang ke TITIK 4 — hanya bereaksi kalau active_branch == '4' (tombol DI_BRANCH_SELECT[3]). Tag placeholder: ganti 00AD dengan hex tag sebenarnya. BELUM ada aksi belok/set_track — isi setelah rute fisik titik 4 ditentukan (lihat catatan di jawaban).",
+      "name": "branch_titik_4",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AD"
+      },
+      "requires_branch": "4",
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "SLOW"
         }
       ],
       "cooldown_s": 5.0,
@@ -209,7 +326,7 @@
       "actions": [
         {
           "type": "set_track",
-          "side": "right"
+          "side": "left"
         }
       ],
       "cooldown_s": 5.0,
@@ -226,7 +343,7 @@
       "actions": [
         {
           "type": "set_track",
-          "side": "left"
+          "side": "right"
         },
         {
           "type": "clear_branch"
@@ -260,33 +377,59 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — berhenti, hentikan mode REVERSE (no-op kalau lagi gak reverse), set ignore_rfid_1 (tag \"1\" di-ignore sampai CE), tunggu 5 detik, lalu otomatis lanjut jalan (resume SLOW). Sengaja TANPA requires_mode — tag ini harus tetep kena baik pas RUNNING (approach normal) maupun REVERSING (ujung mundur). Tag placeholder: ganti 00C1.",
+      "_comment": "RFID CA — mendekati marker stop saat REVERSING: kecepatan mundur turun ke 0.1 m/s supaya berhenti presisi di marker DI10 / RFID CC. Tag placeholder: ganti 00CA dengan hex tag sebenarnya.",
+      "name": "reverse_approach_ca",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00CA"
+      },
+      "actions": [
+        {
+          "type": "set_reverse_speed",
+          "speed": 0.1
+        }
+      ],
+      "cooldown_s": 3.0,
+      "requires_mode": "reversing"
+    },
+    {
+      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu DI14 proximity atas (wait_hooked, timeout 30s), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Kalau wait_hooked timeout: REVERSE tetap diakhiri dan AGV jalan maju (fail-open). Tag placeholder: ganti 00CC.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
         "type": "rfid",
-        "rfid_tag": "00C1"
+        "rfid_tag": "00CC",
+        "reverse_marker": true
       },
       "actions": [
         {
           "type": "stop_agv"
         },
         {
-          "type": "stop_reverse"
-        },
-        {
           "type": "set_ignore_1"
         },
         {
           "type": "wait_seconds",
-          "duration": 5.0
+          "duration": 2.0
+        },
+        {
+          "type": "pusher_up"
+        },
+        {
+          "type": "wait_hooked",
+          "timeout": 30.0
+        },
+        {
+          "type": "stop_reverse"
         },
         {
           "type": "resume",
           "speed": "SLOW"
         }
       ],
-      "cooldown_s": 3.0
+      "cooldown_s": 5.0,
+      "requires_mode": "reversing"
     },
     {
       "_comment": "Tag CE — melepas ignore_rfid_1 (re-arm tag \"1\"). Posisinya di antara BB (merge ke main line) dan tag \"1\" di siding — kelewatin baik pas RUNNING (masuk siding) maupun REVERSING (keluar dari C1). Sengaja TANPA requires_mode biar kena di kedua kondisi. Tag placeholder: ganti 00CE dengan hex tag sebenarnya.",
@@ -302,6 +445,46 @@
         }
       ],
       "cooldown_s": 3.0
+    },
+    {
+      "_comment": "RFID \"0\" — HOMEPOST. Berhenti dan keluar total dari AUTO (balik ke ARMED, mirip RESET manual) — beda sama checkpoint_stop yang cuma nunggu terus lanjut lagi. Operator harus tekan START lagi buat jalan. Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",
+      "name": "arrive_homepost",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0000"
+      },
+      "skip_if_flag": "leaving_home",
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "go_home"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "RFID B0 \u2014 berhenti dan keluar dari AUTO (balik ke ARMED), HANYA kalau run ini di-start dari DI4 CALL START (requires_flag call_run). Run dari tombol START biasa lewat B0 tanpa berhenti. Setelah berhenti di sini, operator tekan START untuk lanjut (run lanjutan itu tidak berhenti di B0 lagi). Tag placeholder: ganti 00B0 dengan hex tag sebenarnya.",
+      "name": "stop_at_b0",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00B0"
+      },
+      "requires_flag": "call_run",
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "exit_auto"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
     }
   ],
   "features": {
@@ -316,5 +499,40 @@
     "DI_TIMEOUT_S": 1.0,
     "CAN_TIMEOUT_S": 1.0,
     "RFID_TIMEOUT_S": 5.0
+  },
+  "pusher": {
+    "_comment": "Pusher pin actuator (trolley hitch). DO_UP/DO_DOWN each drive 2 DO together. HOOK_DELAY_S = settle time after both DI_TROLLEY_LIMIT go OFF before pusher starts moving up. MOVE_TIMEOUT_S = jam guard (added defensively). DO_UP/DO_DOWN ditukar dari mapping awal [8,11]/[9,10] — actuator fisiknya kebalik (nyalain DO yang tadinya dikira UP malah nurunin pusher).",
+    "DO_UP": [13, 14],
+    "DO_DOWN": [12, 15],
+    "HOOK_DELAY_S": 2.0,
+    "MOVE_TIMEOUT_S": 15.0,
+    "_comment_auto": "AUTO_SEQUENCE_ENABLED: false selama limit switch/proximity belum beneran kepasang & keverifikasi ke hardware asli — DO8-11 cuma bisa nyala lewat tombol (FULL UP/DOWN, JOG) di /manual. Baru ganti ke true kalau DI_TROLLEY_LIMIT (9,10) dan DI_PUSHER_PROX_TOP (14) udah fisik terpasang dan sudah dicek bacaannya bener (caught cuma True pas trolley beneran nyangkut, bukan default nyala sendiri).",
+    "AUTO_SEQUENCE_ENABLED": false,
+    "_comment_ignore_limit": "SEMENTARA: limit switch trolley (DI 9,10) diabaikan total. trolley_hooked = pusher sudah di proximity atas (DI 14) saja. Pusher dinaikkan oleh aksi pusher_up di sequence C1 (atau tombol web). Ganti ke false kalau limit switch sudah terpasang & dicek.",
+    "IGNORE_TROLLEY_LIMIT": true
+  },
+  "horn": {
+    "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",
+    "DO_AUTO": 8,
+    "DO_ALARM": 9
+  },
+  "lidar": {
+    "_comment": "Lidar safety field, HANYA saat AUTO maju (RUNNING). DI ON = ada objek. OUTER (DI11) -> maks 0.5 m/s, MIDDLE (DI12) -> maks 0.2 m/s, turun pelan pakai DECEL_RATE. INNER (DI13) -> langsung rem; setelah INNER bersih tunggu RESUME_DELAY_S lalu jalan lagi. DO_AREA (DO3, DO7) = pilih area/field set lidar; pola di-set lewat aksi set_lidar_area di sequence RFID (DEFAULT_AREA saat start/reset). ENABLED false = lidar diabaikan.",
+    "ENABLED": true,
+    "DI_OUTER": 11,
+    "DI_MIDDLE": 12,
+    "DI_INNER": 13,
+    "OUTER_SPEED": 0.5,
+    "MIDDLE_SPEED": 0.2,
+    "DECEL_RATE": 0.2,
+    "RESUME_DELAY_S": 2.0,
+    "DO_AREA": [3, 7],
+    "DEFAULT_AREA": [false, false]
+  },
+  "homepost": {
+    "_comment": "RFID_TAG = tag homepost (sama dengan trigger arrive_homepost). DO_AT_HOME nyala selama AGV ada di homepost (dan tidak sedang RUNNING/REVERSING). ASSUME_AT_HOME_ON_BOOT: true = saat program start, AGV dianggap sudah di homepost (DO11 langsung nyala, DI4 langsung bisa dipakai). Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",
+    "RFID_TAG": "0000",
+    "DO_AT_HOME": 11,
+    "ASSUME_AT_HOME_ON_BOOT": true
   }
 }

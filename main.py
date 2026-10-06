@@ -140,25 +140,41 @@ class DriverManager:
         return fut.result(timeout=10)
 
 
+async def _zero_outputs(label, ip, writes):
+    """Connect briefly and run each write with a short timeout. An unreachable
+    module (e.g. running on a laptop with no IO attached) is skipped after ~2 s
+    instead of hanging the shutdown on pymodbus' default retries."""
+    client = AsyncModbusTcpClient(ip, port=config.MODBUS_PORT, timeout=1, retries=0)
+    try:
+        await asyncio.wait_for(client.connect(), 2.0)
+        if not client.connected:
+            logger.warning("Shutdown: %s (%s) not reachable — outputs not zeroed", label, ip)
+            return False
+        for write in writes:
+            await asyncio.wait_for(write(client), 1.0)
+        return True
+    except Exception as e:
+        logger.warning("Shutdown: %s (%s) — %s", label, ip, e or type(e).__name__)
+        return False
+    finally:
+        client.close()
+
+
 async def shutdown():
     """Zero all DO and AO outputs via direct Modbus writes, bypassing the queues."""
     logger.info("Shutting down — zeroing all outputs...")
-    try:
-        ao_client = AsyncModbusTcpClient(config.AO_IP, port=config.MODBUS_PORT)
-        await ao_client.connect()
-        for i in range(config.NUM_AO):
-            await ao_client.write_register(address=config.AO_BASE + i, value=0)
-        ao_client.close()
-
-        if config.DIO_ENABLED:
-            dio_client = AsyncModbusTcpClient(config.DIO_IP, port=config.MODBUS_PORT)
-            await dio_client.connect()
-            for i in range(config.NUM_DO):
-                await dio_client.write_coil(address=config.DO_BASE + i, value=False)
-            dio_client.close()
+    ao_ok = await _zero_outputs("AO module", config.AO_IP, [
+        (lambda c, i=i: c.write_register(address=config.AO_BASE + i, value=0))
+        for i in range(config.NUM_AO)])
+    do_ok = True
+    if config.DIO_ENABLED:
+        do_ok = await _zero_outputs("DIO module", config.DIO_IP, [
+            (lambda c, i=i: c.write_coil(address=config.DO_BASE + i, value=False))
+            for i in range(config.NUM_DO)])
+    if ao_ok and do_ok:
         logger.info("All outputs zeroed. Shutdown complete.")
-    except Exception as e:
-        logger.error("Shutdown error: %s", e)
+    else:
+        logger.info("Shutdown complete (some outputs could not be reached).")
 
 async def run():
     setup_logging()
@@ -233,10 +249,17 @@ async def run():
         await tasks
     except asyncio.CancelledError:
         logger.info("Main loops cancelled. Executing Modbus hardware shutdown...")
-        await shutdown()
+        try:
+            await shutdown()
+        except asyncio.CancelledError:
+            logger.warning("Shutdown interrupted (second Ctrl+C) — outputs may not be zeroed.")
 
 if __name__ == "__main__":
+    import sys
+    if "--set-engineer-password" in sys.argv:
+        import engineer_auth
+        sys.exit(engineer_auth.set_password_interactive())
     try:
         asyncio.run(run())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
         pass

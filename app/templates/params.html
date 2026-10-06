@@ -377,10 +377,15 @@ function renderValue(v) {
 // otherwise they keep showing the values from page load.
 function loadParams() {
   return fetch('/api/params')
-  .then(r => r.json())
-  .then(data => {
+  .then(r => r.json().then(d => ({ ok: r.ok, d })))
+  .then(({ ok, d: data }) => {
     const grid = document.getElementById('params-grid');
     grid.innerHTML = '';
+    if (!ok) {
+      grid.innerHTML = '<div class="section raised" style="padding:24px;font-size:20px;">' +
+        'PARAMETERS LOCKED — tap <b>ENGINEER</b> in the bottom bar and log in to view and tune.</div>';
+      return;
+    }
     // Render Speeds and PID sections first, then everything else
     const PRIORITY = ['Speeds', 'PID Tuning'];
     const ordered = [
@@ -560,8 +565,9 @@ function _tSync(values) {
 
 function _tLoad() {
   return fetch('/api/params/tuning')
-    .then(r => r.json())
-    .then(d => {
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) { _setTMsg(d.error || 'Locked.', 'warn'); return; }
       _tSpecs = d.specs || {};
       _tBuild();
       _tSync(d.values || {});
@@ -709,5 +715,9 @@ function pollCalib() {
 pollCalib();
 setInterval(pollCalib, 500);
 </script>
+<script>
+window.addEventListener('engineer-change', () => { loadParams(); _tLoad(); });
+</script>
+{% include '_engineer.html' %}
 </body>
 </html>
