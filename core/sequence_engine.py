@@ -504,17 +504,21 @@ class SequenceEngine:
         braked for the whole wait regardless of which mode_manager state it's
         nominally in.
 
-        CAVEAT — same fail-open behaviour as _act_wait_marker: on timeout this
-        raises SequenceTimeout, and _run_sequence's existing handler for that
-        resumes speed_mode=SLOW and clears sequence_stop anyway, i.e. the AGV
-        would still drive off even though hooking was never confirmed. If you
-        want a hard stop here instead (hold + require operator RESET), say so
-        — wiring that in safely needs to key off how system_error currently
-        gets cleared, which wasn't in view when this was written."""
-        timeout  = p.get("timeout", 30.0)
-        deadline = time.time() + timeout
-        logger.info("[SEQ] Waiting for trolley hooked confirmation (timeout %.0fs)", timeout)
-        while time.time() < deadline:
+        No "timeout" (or 0) = wait as long as it takes: the AGV stays braked
+        until trolley_hooked is True. RESET / emergency / MANUAL still abort
+        it (the mode leaves running/reversing and the sequence is cancelled).
+
+        With a "timeout" > 0 the old fail-open behaviour applies: on timeout
+        _run_sequence's SequenceTimeout handler clears sequence_stop and the
+        AGV drives off even though hooking was never confirmed."""
+        timeout  = float(p.get("timeout") or 0)
+        deadline = time.time() + timeout if timeout > 0 else None
+        if deadline is None:
+            logger.info("[SEQ] Waiting for trolley hooked (trolley limit caught + pusher top) — no timeout")
+        else:
+            logger.info("[SEQ] Waiting for trolley hooked confirmation (timeout %.0fs)", timeout)
+        last_log = time.time()
+        while deadline is None or time.time() < deadline:
             # "reversing" too: at C1 this starts while mode_manager is still
             # switching REVERSING → RUNNING (stop_reverse just ran).
             if self._state.current_mode not in ("running", "reversing"):
@@ -522,6 +526,10 @@ class SequenceEngine:
             if self._state.trolley_hooked:
                 logger.info("[SEQ] Trolley hooked confirmed")
                 return
+            if time.time() - last_log >= 10.0:
+                last_log = time.time()
+                logger.info("[SEQ] Still waiting for trolley hooked (pusher=%s)",
+                            self._state.pusher_status)
             await asyncio.sleep(0.05)
         # Fail-open exits REVERSE first: at C1 stop_reverse comes AFTER this
         # step, so without this the generic timeout handler (which clears

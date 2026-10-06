@@ -394,7 +394,7 @@
       "requires_mode": "reversing"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu DI14 proximity atas (wait_hooked, timeout 30s), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Kalau wait_hooked timeout: REVERSE tetap diakhiri dan AGV jalan maju (fail-open). Tag placeholder: ganti 00CC.",
+      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu sampai limit switch trolley DI9 OFF (tersangkut) DAN proximity atas DI14 ON (wait_hooked, TANPA timeout — AGV tetap diam sampai dua-duanya terpenuhi), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Tag placeholder: ganti 00CC.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
@@ -417,8 +417,7 @@
           "type": "pusher_up"
         },
         {
-          "type": "wait_hooked",
-          "timeout": 30.0
+          "type": "wait_hooked"
         },
         {
           "type": "stop_reverse"
@@ -508,8 +507,8 @@
     "MOVE_TIMEOUT_S": 15.0,
     "_comment_auto": "AUTO_SEQUENCE_ENABLED: false selama limit switch/proximity belum beneran kepasang & keverifikasi ke hardware asli — DO8-11 cuma bisa nyala lewat tombol (FULL UP/DOWN, JOG) di /manual. Baru ganti ke true kalau DI_TROLLEY_LIMIT (9,10) dan DI_PUSHER_PROX_TOP (14) udah fisik terpasang dan sudah dicek bacaannya bener (caught cuma True pas trolley beneran nyangkut, bukan default nyala sendiri).",
     "AUTO_SEQUENCE_ENABLED": false,
-    "_comment_ignore_limit": "SEMENTARA: limit switch trolley (DI 9,10) diabaikan total. trolley_hooked = pusher sudah di proximity atas (DI 14) saja. Pusher dinaikkan oleh aksi pusher_up di sequence C1 (atau tombol web). Ganti ke false kalau limit switch sudah terpasang & dicek.",
-    "IGNORE_TROLLEY_LIMIT": true
+    "_comment_ignore_limit": "IGNORE_TROLLEY_LIMIT false = limit switch trolley DIPAKAI: trolley_hooked = DI9 OFF (tersangkut, NC) DAN pusher di proximity atas DI14. AGV baru jalan maju dari CC/marker kalau dua-duanya terpenuhi. true = limit switch diabaikan (hooked = DI14 saja).",
+    "IGNORE_TROLLEY_LIMIT": false
   },
   "horn": {
     "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",
