@@ -516,10 +516,10 @@
     "DO_ALARM": 9
   },
   "lidar": {
-    "_comment": "Lidar safety field, HANYA saat AUTO maju (RUNNING). Output NC: DI OFF = ada objek (lihat NORMALLY_CLOSED). OUTER (DI11) -> maks 0.5 m/s, MIDDLE (DI12) -> maks 0.2 m/s, turun pelan pakai DECEL_RATE. INNER (DI13) -> langsung rem; setelah INNER bersih tunggu RESUME_DELAY_S lalu jalan lagi. DO_AREA (DO3, DO7) = pilih area/field set lidar; pola di-set lewat aksi set_lidar_area di sequence RFID (DEFAULT_AREA saat start/reset). ENABLED false = lidar diabaikan.",
+    "_comment": "Lidar safety field, HANYA saat AUTO maju (RUNNING). Output NO: DI ON = ada objek (lihat NORMALLY_CLOSED). OUTER (DI11) -> maks 0.5 m/s, MIDDLE (DI12) -> maks 0.2 m/s, turun pelan pakai DECEL_RATE. INNER (DI13) -> langsung rem; setelah INNER bersih tunggu RESUME_DELAY_S lalu jalan lagi. DO_AREA (DO3, DO7) = pilih area/field set lidar; pola di-set lewat aksi set_lidar_area di sequence RFID (DEFAULT_AREA saat start/reset). ENABLED false = lidar diabaikan.",
     "ENABLED": true,
-    "_comment_nc": "NORMALLY_CLOSED true = output lidar NC: DI ON saat area bersih, DI OFF saat ada objek (juga OFF kalau kabel putus = aman).",
-    "NORMALLY_CLOSED": true,
+    "_comment_nc": "NORMALLY_CLOSED false = output lidar NO: DI OFF saat area bersih, DI ON saat ada objek. (true = NC: DI OFF saat ada objek.) Catatan NO: kalau kabel putus, area terbaca bersih.",
+    "NORMALLY_CLOSED": false,
     "DI_OUTER": 11,
     "DI_MIDDLE": 12,
     "DI_INNER": 13,
