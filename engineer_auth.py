@@ -66,7 +66,8 @@ def set_password_interactive() -> int:
         json.dump(data, f)
     os.chmod(tmp, 0o640)
     # In a release (run with sudo): root owns it, the "agv" service group reads it.
-    if os.geteuid() == 0:
+    # (os.geteuid does not exist on Windows — skip the ownership step there.)
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
         try:
             import grp
             os.chown(tmp, 0, grp.getgrnam("agv").gr_gid)
