@@ -126,9 +126,10 @@ def _build_di_names():
         names[config.DI_PUSHER_PROX_TOP] = "PUSHER PROX TOP"
     if 0 <= config.DI_PUSHER_PROX_BOTTOM < config.NUM_DI:
         names[config.DI_PUSHER_PROX_BOTTOM] = "PUSHER PROX BOTTOM"
-    for _idx, _lbl in ((config.LIDAR_DI_OUTER, "LIDAR OUTER (≤0.5)"),
-                       (config.LIDAR_DI_MIDDLE, "LIDAR MIDDLE (≤0.2)"),
-                       (config.LIDAR_DI_INNER, "LIDAR INNER (STOP)")):
+    _nc = " NC" if config.LIDAR_NORMALLY_CLOSED else ""
+    for _idx, _lbl in ((config.LIDAR_DI_OUTER, f"LIDAR OUTER{_nc} (≤0.5)"),
+                       (config.LIDAR_DI_MIDDLE, f"LIDAR MIDDLE{_nc} (≤0.2)"),
+                       (config.LIDAR_DI_INNER, f"LIDAR INNER{_nc} (STOP)")):
         if 0 <= _idx < config.NUM_DI:
             names[_idx] = _lbl
     if 0 <= config.DI_REVERSE_MARKER < config.NUM_DI:

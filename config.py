@@ -343,14 +343,17 @@ DO_HORN_AUTO  = _horn.get("DO_AUTO",  -1)
 DO_HORN_ALARM = _horn.get("DO_ALARM", -1)
 
 # ── Lidar safety fields (AUTO forward only) ───────────────────────────────────
-# Three lidar outputs, read as DI (ON = object in that field, as the code
-# sees it after DI_FLIPPED). OUTER caps speed at OUTER_SPEED, MIDDLE at
+# Three lidar outputs, read as DI (as the code sees them after DI_FLIPPED).
+# With NORMALLY_CLOSED the field counts as occupied when its DI is OFF. OUTER caps speed at OUTER_SPEED, MIDDLE at
 # MIDDLE_SPEED (both reached with DECEL_RATE, i.e. slowly), INNER brakes at
 # once; after INNER clears the AGV waits RESUME_DELAY_S and continues.
 # DO_AREA: the two outputs that select the lidar's field set (pattern set by
 # the "set_lidar_area" sequence action, DEFAULT_AREA at start / reset).
 _lidar = _params.get("lidar", {})
 LIDAR_ENABLED        = bool(_lidar.get("ENABLED", False))
+# NORMALLY_CLOSED true: each lidar output is ON while its field is clear and
+# turns OFF when an object enters (NC / fail-safe style). false: ON = object.
+LIDAR_NORMALLY_CLOSED = bool(_lidar.get("NORMALLY_CLOSED", False))
 LIDAR_DI_OUTER       = _lidar.get("DI_OUTER",  -1)
 LIDAR_DI_MIDDLE      = _lidar.get("DI_MIDDLE", -1)
 LIDAR_DI_INNER       = _lidar.get("DI_INNER",  -1)

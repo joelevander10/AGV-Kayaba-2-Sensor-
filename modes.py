@@ -18,14 +18,18 @@ logger = logging.getLogger(__name__)
 
 def _lidar_zone(state):
     """Innermost lidar field currently occupied ("inner"/"middle"/"outer")
-    or None. ON = object (as seen after DI_FLIPPED). Disabled → None."""
+    or None. NORMALLY_CLOSED: DI OFF = object (ON = clear); otherwise
+    DI ON = object. Values as seen after DI_FLIPPED. Disabled → None."""
     if not config.LIDAR_ENABLED:
         return None
     di = state.latest_di
     if di is None:
         return None
     def on(idx):
-        return 0 <= idx < len(di) and bool(di[idx])
+        # True = object in this field. An unassigned field (-1) never triggers.
+        if not (0 <= idx < len(di)):
+            return False
+        return (not di[idx]) if config.LIDAR_NORMALLY_CLOSED else bool(di[idx])
     if on(config.LIDAR_DI_INNER):
         return "inner"
     if on(config.LIDAR_DI_MIDDLE):
