@@ -83,6 +83,8 @@ class SequenceEngine:
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
             "pusher_up":         self._act_pusher_up,
+            "pusher_down":       self._act_pusher_down,
+            "wait_pusher_bottom": self._act_wait_pusher_bottom,
             "set_reverse_speed": self._act_set_reverse_speed,
             "set_lidar_area":    self._act_set_lidar_area,
         }
@@ -482,6 +484,43 @@ class SequenceEngine:
             return
         self._state.reverse_speed_override = speed
         logger.info("[SEQ] Reverse speed → %.2f m/s", speed)
+
+    async def _act_pusher_down(self, p: dict):
+        """Command the pusher to full-travel DOWN — same path as the web FULL
+        DOWN button (pusher.py drives until DI_PUSHER_PROX_BOTTOM or
+        MOVE_TIMEOUT_S). Doesn't wait; follow it with wait_pusher_bottom.
+        Skipped if the pusher e-stop is latched."""
+        if self._state.pusher_estop:
+            logger.warning("[SEQ] pusher_down skipped — pusher E-STOP is active")
+            return
+        self._state.pusher_up_request   = False
+        self._state.pusher_down_request = True
+        logger.info("[SEQ] Pusher DOWN requested")
+
+    async def _act_wait_pusher_bottom(self, p: dict):
+        """Block until the pusher's bottom proximity (DI_PUSHER_PROX_BOTTOM)
+        reads ON. No "timeout" (or 0) = wait as long as it takes, AGV stays
+        braked; RESET / emergency / MANUAL cancel it. With a timeout > 0 the
+        generic SequenceTimeout handler resumes anyway (fail-open)."""
+        idx      = config.DI_PUSHER_PROX_BOTTOM
+        timeout  = float(p.get("timeout") or 0)
+        deadline = time.time() + timeout if timeout > 0 else None
+        logger.info("[SEQ] Waiting for pusher bottom proximity DI%s%s", idx,
+                    "" if deadline is None else f" (timeout {timeout:.0f}s)")
+        last_log = time.time()
+        while deadline is None or time.time() < deadline:
+            if self._state.current_mode not in ("running", "reversing"):
+                raise asyncio.CancelledError()
+            di = self._state.latest_di
+            if idx >= 0 and di is not None and len(di) > idx and di[idx]:
+                logger.info("[SEQ] Pusher at bottom")
+                return
+            if time.time() - last_log >= 10.0:
+                last_log = time.time()
+                logger.info("[SEQ] Still waiting for pusher bottom (pusher=%s)",
+                            self._state.pusher_status)
+            await asyncio.sleep(0.05)
+        raise SequenceTimeout("wait_pusher_bottom")
 
     async def _act_pusher_up(self, p: dict):
         """Command the pusher to full-travel UP — same path as the web FULL UP

@@ -215,20 +215,33 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Timed checkpoint stop — RFID-only trigger",
-      "name": "checkpoint_stop",
+      "_comment": "RFID C — lepas trolley: AGV berhenti, pusher turun, tunggu proximity bawah DI15 ON (tanpa timeout, AGV tetap diam), tunggu 2 detik, lalu jalan maju SLOW sampai berhenti di RFID 0 (homepost). Tag placeholder: ganti 000C dengan hex tag sebenarnya.",
+      "name": "release_at_c",
+      "category": "sequence",
       "trigger": {
         "type": "rfid",
         "rfid_tag": "000C"
       },
       "actions": [
         {
-          "type": "sequence_stop",
-          "duration": 4.0,
-          "resume_speed": "SLOW"
+          "type": "stop_agv"
+        },
+        {
+          "type": "pusher_down"
+        },
+        {
+          "type": "wait_pusher_bottom"
+        },
+        {
+          "type": "wait_seconds",
+          "duration": 2.0
+        },
+        {
+          "type": "resume",
+          "speed": "SLOW"
         }
       ],
-      "cooldown_s": 0.0,
+      "cooldown_s": 5.0,
       "requires_mode": "running"
     },
     {
