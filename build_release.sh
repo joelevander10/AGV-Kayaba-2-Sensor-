@@ -73,10 +73,20 @@ ok "Profile ${AGV_ID} loads"
 
 # ── 1. Build tools ───────────────────────────────────────────────────────────
 say "Installing build tools (sudo)"
-sudo apt-get update -qq
-sudo apt-get install -y -qq build-essential patchelf ccache python3-dev >/dev/null
-"${PY}" -m pip install --quiet --upgrade nuitka ordered-set zstandard
-"${PY}" -m pip install --quiet -r "${SRC_DIR}/requirements.txt"
+# Internet is needed for apt and pip — fail fast instead of hanging.
+if ! timeout 8 bash -c 'exec 3<>/dev/tcp/archive.ubuntu.com/80' 2>/dev/null; then
+  die "No internet (cannot reach archive.ubuntu.com). Connect the WiFi to a network with internet and run again."
+fi
+ok "Internet OK"
+# Ubuntu's automatic updates hold the apt lock for a while after boot.
+if pgrep -x apt-get >/dev/null || pgrep -x apt >/dev/null || pgrep -x dpkg >/dev/null || pgrep -f unattended-upgrade >/dev/null; then
+  echo "    Ubuntu is installing updates in the background — waiting for it to finish (can take a few minutes)…"
+fi
+sudo apt-get -o DPkg::Lock::Timeout=900 update
+sudo apt-get -o DPkg::Lock::Timeout=900 install -y build-essential patchelf ccache python3-dev
+echo "    Installing Nuitka and the Python packages (pip)…"
+"${PY}" -m pip install --upgrade nuitka ordered-set zstandard
+"${PY}" -m pip install -r "${SRC_DIR}/requirements.txt"
 ok "gcc, patchelf, ccache, Nuitka $("${PY}" -m nuitka --version 2>/dev/null | head -1)"
 
 # ── 2. Compile ───────────────────────────────────────────────────────────────
