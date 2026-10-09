@@ -80,8 +80,16 @@ def parse_frames(buf: bytearray) -> list:
     return frames
 
 
+_CMD_TAG = 0x0001        # inventory report: CF addr 00 01 LEN status RSSI(2) ant ch EPClen EPC CRC
+
+
 def tag_from_frame(frame: bytes):
+    """Tag ID from an inventory report, None for any other frame (e.g. the
+    device-info answer to the init command, which used to show up as a
+    junk tag "3130" and cleared at_homepost on every connect)."""
     if len(frame) < _TAG_FRAME:
+        return None
+    if (frame[2] << 8 | frame[3]) != _CMD_TAG or frame[5] != 0x00:
         return None
     return binascii.hexlify(frame[13:15]).decode().upper()
 
