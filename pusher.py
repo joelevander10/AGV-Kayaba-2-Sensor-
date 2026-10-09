@@ -194,6 +194,9 @@ async def pusher_controller(state):
     move_deadline  = None
     moving_up_auto = False    # True only when moving_up was entered via the autonomous
                                # hook sequence — gates the "abort on limit re-assert" guard
+    last_dir       = None     # "up" | "down" — last full-travel direction (button toggle)
+    btn_prev       = _prox(state.latest_di, config.DI_PUSHER_BUTTON)
+    btn_last_press = 0.0
 
     while True:
         di     = state.latest_di
@@ -219,6 +222,41 @@ async def pusher_controller(state):
         # cleanly from current sensor state.
         if phase in _JOG_STATUSES:
             phase = "idle"
+
+        # ── 0. Physical pusher button (DI_PUSHER_BUTTON, e.g. DI0) ──────────
+        # One press while stopped: pin at bottom → full UP, at top → full DOWN,
+        # in between → opposite of its last move. A press while it is moving
+        # stops it. Only while the AGV is ARMED or MANUAL (never while driving
+        # or during a reverse/hitch sequence), never during a pusher E-STOP.
+        btn = _prox(di, config.DI_PUSHER_BUTTON)
+        if btn and not btn_prev and (now - btn_last_press) > 0.5:
+            btn_last_press = now
+            if state.current_mode not in ("armed", "manual"):
+                logger.warning("[Pusher] Button ignored — AGV is %s", state.current_mode)
+            elif state.pusher_estop:
+                logger.warning("[Pusher] Button ignored — pusher E-STOP is active")
+            elif phase in ("moving_up", "moving_down"):
+                state.pusher_up_request   = False
+                state.pusher_down_request = False
+                _drive(state, up=False, down=False)
+                phase = "idle"
+                logger.info("[Pusher] Button — STOP")
+            else:
+                if at_bot and not at_top:
+                    go_up = True
+                elif at_top and not at_bot:
+                    go_up = False
+                else:
+                    go_up = (last_dir != "up")
+                state.pusher_jog_cmd = None
+                if go_up:
+                    state.pusher_down_request = False
+                    state.pusher_up_request   = True
+                else:
+                    state.pusher_up_request   = False
+                    state.pusher_down_request = True
+                logger.info("[Pusher] Button — full %s", "UP" if go_up else "DOWN")
+        btn_prev = btn
 
         # ── 1. Pusher e-stop — highest priority ────────────────────────────
         if state.pusher_estop:
@@ -267,6 +305,7 @@ async def pusher_controller(state):
         if state.pusher_up_request and phase in ("idle", "hook_wait", "hooked"):
             phase          = "moving_up"
             moving_up_auto = False
+            last_dir       = "up"
             move_deadline  = now + config.PUSHER_MOVE_TIMEOUT_S
             logger.info("[Pusher] Manual UP requested")
 
@@ -274,6 +313,7 @@ async def pusher_controller(state):
             if phase == "hook_wait":
                 logger.info("[Pusher] DOWN requested — cancelling pending auto UP")
             phase         = "moving_down"
+            last_dir      = "down"
             move_deadline = now + config.PUSHER_MOVE_TIMEOUT_S
 
         # ── 5. Autonomous hook sequence / phase machine ─────────────────────
@@ -292,6 +332,7 @@ async def pusher_controller(state):
             elif now >= hook_deadline:
                 phase          = "moving_up"
                 moving_up_auto = True
+                last_dir       = "up"
                 move_deadline  = now + config.PUSHER_MOVE_TIMEOUT_S
                 logger.info("[Pusher] Settle elapsed — pusher UP")
 

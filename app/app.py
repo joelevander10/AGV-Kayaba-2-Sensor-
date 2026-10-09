@@ -132,6 +132,8 @@ def _build_di_names():
                        (config.LIDAR_DI_INNER, f"LIDAR INNER{_nc} (STOP)")):
         if 0 <= _idx < config.NUM_DI:
             names[_idx] = _lbl
+    if 0 <= config.DI_PUSHER_BUTTON < config.NUM_DI:
+        names[config.DI_PUSHER_BUTTON] = "PUSHER BUTTON (UP/DOWN)"
     if 0 <= config.DI_REVERSE_MARKER < config.NUM_DI:
         names[config.DI_REVERSE_MARKER] = "REVERSE STOP MARKER"
     if 0 <= config.DI_CALL_START < config.NUM_DI:
@@ -818,16 +820,14 @@ _RESTART_CMD = ["/usr/bin/systemctl", "restart", "agv-controller.service"]
 
 @app.route("/api/web_button/mode", methods=["POST"])
 def api_web_button_mode():
-    """Enable or disable web button bypass mode. Enabling needs the engineer
-    login; disabling (back to the physical panel) is always allowed."""
+    """Enable or disable web button bypass mode (MANUAL page). Open to
+    operators — no engineer login needed."""
     if _state is None:
         return jsonify({"error": "state not initialised"}), 503
     data = request.get_json(silent=True) or {}
     enable = data.get("enable")
     if not isinstance(enable, bool):
         return jsonify({"error": "enable must be true or false"}), 400
-    if enable and not _engineer_ok():
-        return _locked_response()
     _state.web_button_mode = enable
     if not enable:
         _state.web_btn_start     = False

@@ -64,7 +64,10 @@ DI_REV         = _params["io_mapping"]["DI_REV"]
 DI_LEFT        = _params["io_mapping"]["DI_LEFT"]
 DI_RIGHT       = _params["io_mapping"]["DI_RIGHT"]
 DI_MODE_SWITCH = _params["io_mapping"]["DI_MODE_SWITCH"]
-DI_START       = _params["io_mapping"]["DI_START"]
+DI_START       = _params["io_mapping"]["DI_START"]          # -1 = no START button
+# Physical pusher button: one press = full UP / full DOWN (toggle by position),
+# press while moving = stop. Only while the AGV is ARMED or MANUAL. -1 = none.
+DI_PUSHER_BUTTON = _params["io_mapping"].get("DI_PUSHER_BUTTON", -1)
 DI_RESET       = _params["io_mapping"]["DI_RESET"]
 # Magnetic proximity sensor used as a station marker for sequences (-1 = none).
 DI_PROX        = _params["io_mapping"].get("DI_PROX", -1)
@@ -444,6 +447,8 @@ def _validate():
           "lidar DO_AREA and DEFAULT_AREA must each have 2 entries")
     for idx in LIDAR_DO_AREA:
         check(-1 <= idx < NUM_DO, f"lidar DO_AREA channel must be -1 or in [0, {NUM_DO}) (got {idx})")
+    if DI_PUSHER_BUTTON >= 0:
+        check(DI_PUSHER_BUTTON < NUM_DI, f"DI_PUSHER_BUTTON must be in [0, {NUM_DI}) (got {DI_PUSHER_BUTTON})")
     if DI_REVERSE_MARKER >= 0:
         check(DI_REVERSE_MARKER < NUM_DI, f"DI_REVERSE_MARKER must be in [0, {NUM_DI}) (got {DI_REVERSE_MARKER})")
     if DI_CALL_START >= 0:

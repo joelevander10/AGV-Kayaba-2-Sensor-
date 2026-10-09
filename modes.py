@@ -840,7 +840,9 @@ async def mode_manager(state, engine=None, manager=None):
         else:
             emergency_safe = not phys_emergency
             switch_manual  = di[config.DI_MODE_SWITCH]
-            btn_start      = di[config.DI_START]
+            # -1 = no physical START button (DI0 is the pusher button now);
+            # AUTO is started by the branch buttons / CALL START instead.
+            btn_start      = (0 <= config.DI_START < len(di)) and bool(di[config.DI_START])
             btn_reset      = di[config.DI_RESET]
 
         start_rising = btn_start and not last_start
