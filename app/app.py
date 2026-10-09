@@ -127,8 +127,8 @@ def _build_di_names():
     if 0 <= config.DI_PUSHER_PROX_BOTTOM < config.NUM_DI:
         names[config.DI_PUSHER_PROX_BOTTOM] = "PUSHER PROX BOTTOM"
     _nc = " NC" if config.LIDAR_NORMALLY_CLOSED else ""
-    for _idx, _lbl in ((config.LIDAR_DI_OUTER, f"LIDAR OUTER{_nc} (≤0.5)"),
-                       (config.LIDAR_DI_MIDDLE, f"LIDAR MIDDLE{_nc} (≤0.2)"),
+    for _idx, _lbl in ((config.LIDAR_DI_OUTER, f"LIDAR OUTER{_nc} ({config.LIDAR_OUTER_PERCENT:g}%)"),
+                       (config.LIDAR_DI_MIDDLE, f"LIDAR MIDDLE{_nc} ({config.LIDAR_MIDDLE_PERCENT:g}%)"),
                        (config.LIDAR_DI_INNER, f"LIDAR INNER{_nc} (STOP)")):
         if 0 <= _idx < config.NUM_DI:
             names[_idx] = _lbl
@@ -189,6 +189,7 @@ def _build_state_snapshot():
         "track_follow":         s.track_follow,
         "active_branch":        s.active_branch,
         "at_homepost":          s.at_homepost,
+        "lidar_enabled":        config.LIDAR_ENABLED,
         "lidar_zone":           s.lidar_zone,
         "lidar_area":           s.lidar_area,
         "call_run":             s.call_run,
@@ -681,6 +682,7 @@ def api_params():
             "CAN Enabled":        config.CAN_ENABLED,
             "RFID Navigation":    config.NAV_ENABLED,
             "RFID Sequence":      config.SEQ_ENABLED,
+            "Lidar":              config.LIDAR_ENABLED,
         },
         "Hardware": {
             "V Range":            config.V_RANGE,
@@ -708,10 +710,20 @@ def api_set_features():
         return jsonify({"error": "driver manager unavailable"}), 503
 
     data = request.get_json(silent=True) or {}
-    allowed = {"CAN_ENABLED", "NAV_ENABLED", "SEQ_ENABLED"}
+    allowed = {"CAN_ENABLED", "NAV_ENABLED", "SEQ_ENABLED", "LIDAR_ENABLED"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "no valid feature flags provided"}), 400
+
+    # Lidar is a plain flag read live by auto_mode (no driver to start/stop).
+    # Live only — back to the profile's lidar.ENABLED on restart.
+    if "LIDAR_ENABLED" in updates:
+        config.LIDAR_ENABLED = bool(updates.pop("LIDAR_ENABLED"))
+        _state.lidar_zone = None
+        if config.LIDAR_ENABLED:
+            logger.info("[HMI] Lidar safety fields ENABLED")
+        else:
+            logger.warning("[HMI] Lidar safety fields DISABLED from the web")
 
     # The manager enforces the NAV -> SEQ hierarchy: disabling a parent
     # cascades to children; enabling a child whose parent is off is rejected.
@@ -728,7 +740,8 @@ def api_set_features():
         "ok": True,
         "CAN_ENABLED":  config.CAN_ENABLED,
         "NAV_ENABLED":  config.NAV_ENABLED,
-        "SEQ_ENABLED":  config.SEQ_ENABLED
+        "SEQ_ENABLED":  config.SEQ_ENABLED,
+        "LIDAR_ENABLED": config.LIDAR_ENABLED
     })
 
 

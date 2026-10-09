@@ -595,6 +595,7 @@
       <span id="speed-mode-display" style="font-size: 16px;font-weight:bold;color:#000080;background:#fff;padding:2px 10px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">—</span>
       <span id="target-speed-display" style="font-size: 16px;font-weight:bold;color:#000080;background:#fff;padding:2px 10px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;">—</span>
       <span class="sensor-field-label" style="color:#606060;">m/s</span>
+      <span id="lidar-off-badge" style="display:none;font-size:14px;font-weight:bold;color:#fff;background:#c00000;padding:2px 8px;margin-left:6px;">LIDAR OFF</span>
     </div>
   </div>
   <div id="drive-body">
@@ -788,6 +789,7 @@ function fetchState() {
 
       // Motion telemetry
       document.getElementById('speed-mode-display').textContent  = (sen && sen.speed_mode)   || '—'; 
+      document.getElementById('lidar-off-badge').style.display = (agv && agv.lidar_enabled === false) ? 'inline-block' : 'none';
       document.getElementById('target-speed-display').textContent = (sen && sen.target_speed != null) ? sen.target_speed.toFixed(3) : '—'; 
       document.getElementById('pid-output-display').textContent  = (sen && sen.pid_output  != null) ? (sen.pid_output > 0 ? '+' : '') + sen.pid_output.toFixed(1) : '—'; 
       document.getElementById('left-rpm-display').textContent    = (sen && sen.left_rpm    != null) ? sen.left_rpm.toFixed(1)   : '—'; 

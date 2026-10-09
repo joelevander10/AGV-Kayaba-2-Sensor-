@@ -3,10 +3,12 @@ import binascii
 import socket
 import sys
 import os
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import config
+from drivers.rfid_tcp import parse_frames, tag_from_frame
 
 
 async def main():
@@ -21,6 +23,7 @@ async def main():
             await loop.sock_connect(sock, (config.RFID_IP, config.RFID_PORT))
             await loop.sock_sendall(sock, config.RFID_INIT_CMD)
             print("Connected. Waiting for tags...\n")
+            buf = bytearray()
 
             while True:
                 data = await loop.sock_recv(sock, 1024)
@@ -28,12 +31,15 @@ async def main():
                     print("Connection closed by reader.")
                     break
 
-                hex_data = binascii.hexlify(data).decode().upper()
-                for part in hex_data.split("CF")[1:]:
-                    packet = "CF" + part
-                    if len(packet) >= 34:
-                        tag = packet[26:30]
-                        print(f"Tag: {tag}  (dec={int(tag, 16)})")
+                buf.extend(data)
+                for frame in parse_frames(buf):
+                    tag = tag_from_frame(frame)
+                    raw = binascii.hexlify(frame).decode().upper()
+                    if tag is None:
+                        print(f"Frame (no tag): {raw}")
+                    else:
+                        print(f"{time.strftime('%H:%M:%S')}.{int(time.time()*1000)%1000:03d}  "
+                              f"Tag: {tag}  (dec={int(tag, 16)})  raw={raw}")
 
         except KeyboardInterrupt:
             break

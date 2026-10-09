@@ -347,8 +347,8 @@ DO_HORN_ALARM = _horn.get("DO_ALARM", -1)
 
 # ── Lidar safety fields (AUTO forward only) ───────────────────────────────────
 # Three lidar outputs, read as DI (as the code sees them after DI_FLIPPED).
-# With NORMALLY_CLOSED the field counts as occupied when its DI is OFF. OUTER caps speed at OUTER_SPEED, MIDDLE at
-# MIDDLE_SPEED (both reached with DECEL_RATE, i.e. slowly), INNER brakes at
+# With NORMALLY_CLOSED the field counts as occupied when its DI is OFF. OUTER runs at OUTER_PERCENT of the current
+# speed, MIDDLE at MIDDLE_PERCENT (both reached with DECEL_RATE, i.e. slowly), INNER brakes at
 # once; after INNER clears the AGV waits RESUME_DELAY_S and continues.
 # DO_AREA: the two outputs that select the lidar's field set (pattern set by
 # the "set_lidar_area" sequence action, DEFAULT_AREA at start / reset).
@@ -360,8 +360,10 @@ LIDAR_NORMALLY_CLOSED = bool(_lidar.get("NORMALLY_CLOSED", False))
 LIDAR_DI_OUTER       = _lidar.get("DI_OUTER",  -1)
 LIDAR_DI_MIDDLE      = _lidar.get("DI_MIDDLE", -1)
 LIDAR_DI_INNER       = _lidar.get("DI_INNER",  -1)
-LIDAR_OUTER_SPEED    = float(_lidar.get("OUTER_SPEED",  0.5))
-LIDAR_MIDDLE_SPEED   = float(_lidar.get("MIDDLE_SPEED", 0.2))
+# OUTER / MIDDLE: run at this % of the current AUTO speed (60 = 60% of the
+# speed mode's speed, e.g. MAX 1.0 m/s -> 0.6 m/s). INNER always stops.
+LIDAR_OUTER_PERCENT  = float(_lidar.get("OUTER_PERCENT",  60.0))
+LIDAR_MIDDLE_PERCENT = float(_lidar.get("MIDDLE_PERCENT", 30.0))
 LIDAR_DECEL_RATE     = float(_lidar.get("DECEL_RATE", _params["speeds"]["DECEL_RATE"]))
 LIDAR_RESUME_DELAY_S = float(_lidar.get("RESUME_DELAY_S", 2.0))
 LIDAR_DO_AREA        = list(_lidar.get("DO_AREA", [-1, -1]))
@@ -439,8 +441,8 @@ def _validate():
         for name, idx in [("lidar DI_OUTER", LIDAR_DI_OUTER), ("lidar DI_MIDDLE", LIDAR_DI_MIDDLE),
                           ("lidar DI_INNER", LIDAR_DI_INNER)]:
             check(-1 <= idx < NUM_DI, f"{name} must be -1 or in [0, {NUM_DI}) (got {idx})")
-        check(LIDAR_OUTER_SPEED > 0 and LIDAR_MIDDLE_SPEED > 0,
-              "lidar OUTER_SPEED / MIDDLE_SPEED must be > 0")
+        check(0 < LIDAR_OUTER_PERCENT <= 100 and 0 < LIDAR_MIDDLE_PERCENT <= 100,
+              "lidar OUTER_PERCENT / MIDDLE_PERCENT must be in (0, 100]")
         check(LIDAR_DECEL_RATE > 0, f"lidar DECEL_RATE must be > 0 (got {LIDAR_DECEL_RATE})")
         check(LIDAR_RESUME_DELAY_S >= 0, "lidar RESUME_DELAY_S must be >= 0")
     check(len(LIDAR_DO_AREA) == 2 and len(LIDAR_DEFAULT_AREA) == 2,

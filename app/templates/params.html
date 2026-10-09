@@ -312,6 +312,12 @@
       <span class="toggle-knob"></span>
     </button>
   </div>
+  <div class="setting-row">
+    <span class="setting-name">LIDAR SAFETY <span class="dep-note">(outer slow / middle slow / inner stop — AUTO forward)</span></span>
+    <button class="toggle" id="toggle-LIDAR_ENABLED" data-flag="LIDAR_ENABLED">
+      <span class="toggle-knob"></span>
+    </button>
+  </div>
   <div id="settings-msg" class="info">—</div>
 </div>
 
@@ -409,6 +415,7 @@ function loadParams() {
       setToggle('CAN_ENABLED',  data['Features']['CAN Enabled']);
       setToggle('NAV_ENABLED',  data['Features']['RFID Navigation']);
       setToggle('SEQ_ENABLED',  data['Features']['RFID Sequence']);
+      setToggle('LIDAR_ENABLED', data['Features']['Lidar']);
       applyDeps();
     }
     document.getElementById('ts').textContent = new Date().toLocaleTimeString();
@@ -448,10 +455,11 @@ function applyResponse(d) {
   setToggle('CAN_ENABLED',  d.CAN_ENABLED);
   setToggle('NAV_ENABLED',  d.NAV_ENABLED);
   setToggle('SEQ_ENABLED',  d.SEQ_ENABLED);
+  setToggle('LIDAR_ENABLED', d.LIDAR_ENABLED);
   applyDeps();
 }
 
-['CAN_ENABLED', 'NAV_ENABLED', 'SEQ_ENABLED'].forEach(flag => {
+['CAN_ENABLED', 'NAV_ENABLED', 'SEQ_ENABLED', 'LIDAR_ENABLED'].forEach(flag => {
   document.getElementById('toggle-' + flag).addEventListener('click', () => {
     if (_card.classList.contains('locked')) return;
     const btn = document.getElementById('toggle-' + flag);

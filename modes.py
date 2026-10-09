@@ -159,12 +159,12 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_MEDIUM_SPEED
             else:
                 target_speed = config.AUTO_TARGET_HIGH_SPEED
-            # Lidar caps (never raises the speed).
+            # Lidar: run at a percentage of the current speed mode's speed.
             lidar_cap = None
             if zone == "middle":
-                lidar_cap = config.LIDAR_MIDDLE_SPEED
+                lidar_cap = target_speed * config.LIDAR_MIDDLE_PERCENT / 100.0
             elif zone == "outer":
-                lidar_cap = config.LIDAR_OUTER_SPEED
+                lidar_cap = target_speed * config.LIDAR_OUTER_PERCENT / 100.0
             if lidar_cap is not None and target_speed > lidar_cap:
                 target_speed = lidar_cap
 
