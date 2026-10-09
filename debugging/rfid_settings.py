@@ -34,7 +34,8 @@ FIELDS = [
     ("acs_addr", 1), ("acs_len", 1), ("filter", 1), ("trigger", 1),
     ("buzzer", 1), ("interval", 1),
 ]
-EDITABLE = {"interval", "buzzer", "q", "filter", "power", "session"}
+EDITABLE = {"interval", "buzzer", "q", "filter", "power", "session",
+            "start_freq_mhz", "start_freq_khz", "channels"}
 NOTES = {
     "work_mode": "0=answer 1=active(auto-send) 2=trigger",
     "power":     "dBm (33 = max)",
@@ -43,6 +44,7 @@ NOTES = {
     "filter":    "same-tag filter time",
     "buzzer":    "0 = buzzer off",
     "interval":  "pause between scans in active mode (0 = continuous)",
+    "channels":  "number of hop channels (step_khz apart)",
 }
 
 
