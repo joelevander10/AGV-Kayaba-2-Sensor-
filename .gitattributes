@@ -3,3 +3,4 @@
 
 # Shell scripts must keep LF endings (they run on the Ubuntu AGV)
 *.sh text eol=lf
+kiosk/agv-dashboard text eol=lf

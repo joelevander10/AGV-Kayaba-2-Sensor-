@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  agv-dashboard — open the AGV web dashboard full-screen on the AGV's screen.
+#  Started automatically at desktop login (see kiosk/install_kiosk.sh).
+#  Waits until the controller's web server answers, then opens the browser.
+#  Leave kiosk mode with Alt+F4.
+# =============================================================================
+URL="${AGV_DASHBOARD_URL:-http://localhost:5000/}"
+WAIT_S="${AGV_DASHBOARD_WAIT_S:-180}"
+
+# 1. Wait for the controller (it may still be starting after power-on).
+for ((i = 0; i < WAIT_S; i++)); do
+  if python3 -c "import urllib.request,sys; urllib.request.urlopen('${URL%/}/api/state', timeout=2)" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+# 2. No "restore pages?" bubble after a hard power-off (Chromium/Chrome).
+for prefs in "$HOME/snap/chromium/common/chromium/Default/Preferences" \
+             "$HOME/.config/chromium/Default/Preferences" \
+             "$HOME/.config/google-chrome/Default/Preferences"; do
+  [[ -f "$prefs" ]] && sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$prefs"
+done
+
+# 3. Open the first browser found, full-screen kiosk.
+CHROME_FLAGS=(--kiosk --noerrdialogs --disable-infobars --no-first-run
+              --disable-translate --check-for-update-interval=31536000
+              --overscroll-history-navigation=0)
+for b in chromium chromium-browser google-chrome google-chrome-stable; do
+  if command -v "$b" >/dev/null 2>&1; then
+    exec "$b" "${CHROME_FLAGS[@]}" "$URL"
+  fi
+done
+if command -v firefox >/dev/null 2>&1; then
+  exec firefox --kiosk "$URL"
+fi
+echo "agv-dashboard: no browser found (install one: sudo snap install chromium)" >&2
+exit 1
