@@ -322,7 +322,7 @@
 </div>
 
 <div id="tuning-card" class="section raised">
-  <div class="section-title">LIVE TUNING &nbsp;<span class="dep-note">(not saved — resets to profile on restart)</span></div>
+  <div class="section-title">LIVE TUNING &nbsp;<span class="dep-note">(APPLY saves — kept after restart · RESET TO PROFILE clears saved values)</span></div>
   <div id="tuning-groups"></div>
   <div class="tune-actions">
     <button class="tune-btn apply"  id="tune-apply">APPLY</button>
@@ -607,7 +607,7 @@ function _tPost(url, body, pendingMsg) {
       if (!ok) { _setTMsg(d.error || 'Failed to apply.', 'warn'); return false; }
       _tSync(d.values || {});
       loadParams();          // refresh the read-only tables below
-      return true;
+      return d;
     })
     .catch(() => { _setTMsg('Connection error — not applied.', 'warn'); return false; });
 }
@@ -617,15 +617,18 @@ document.getElementById('tune-apply').addEventListener('click', () => {
   const changed = _tCollectChanged();
   if (!Object.keys(changed).length) { _setTMsg('Nothing changed.', 'info'); return; }
   _tPost('/api/params/tuning', changed, 'Applying…').then(ok => {
-    if (ok) _setTMsg('Applied. Manual speeds take effect now; AUTO values load on '
-                     + 'next START. Not saved — resets to profile on restart.', 'ok');
+    if (!ok) return;
+    if (ok.saved) _setTMsg('Applied and SAVED as default. Manual speeds take effect now; '
+                           + 'AUTO values load on next START.', 'ok');
+    else _setTMsg('Applied but NOT saved (' + (ok.save_error || 'write error')
+                  + ') — resets on restart.', 'warn');
   });
 });
 
 document.getElementById('tune-revert').addEventListener('click', () => {
   if (_tCard.classList.contains('locked')) return;
   _tPost('/api/params/tuning/reset', {}, 'Resetting…').then(ok => {
-    if (ok) _setTMsg('Reset to profile values.', 'ok');
+    if (ok) _setTMsg('Reset to profile values' + (ok.saved ? ' — saved values cleared.' : '.'), 'ok');
   });
 });
 

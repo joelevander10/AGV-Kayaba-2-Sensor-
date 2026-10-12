@@ -591,3 +591,32 @@ TUNABLE_SPECS = {   # key: (min, max)
 # Snapshot for "reset to profile". Captured after _validate(), so it reflects the
 # profile exactly, including every .get() fallback default.
 TUNABLE_DEFAULTS = {k: globals()[k] for k in TUNABLE_SPECS}
+
+# ── Saved live tuning (PARAMS page APPLY) ────────────────────────────────────
+# APPLY on the PARAMS page saves the tuned values here; they are loaded on top
+# of the profile at every start, so they become the new defaults. Only values
+# that differ from the profile are stored. "RESET TO PROFILE" deletes the file.
+# Lives in a writable data/ folder (the release's profile is read-only).
+TUNING_SAVE_FILE = os.environ.get(
+    "AGV_TUNING_FILE", os.path.join(_dir, "data", f"tuning_{AGV_ID}.json"))
+TUNING_SAVED = {}
+try:
+    with open(TUNING_SAVE_FILE, "r") as _f:
+        _saved = json.load(_f)
+    for _k, _v in (_saved.get("values", {}) if isinstance(_saved, dict) else {}).items():
+        if _k in TUNABLE_SPECS:
+            _lo, _hi = TUNABLE_SPECS[_k]
+            try:
+                _v = float(_v)
+            except (TypeError, ValueError):
+                continue
+            if _lo <= _v <= _hi:
+                globals()[_k] = _v
+                TUNING_SAVED[_k] = _v
+    if TUNING_SAVED:
+        print(f"Saved tuning loaded from {TUNING_SAVE_FILE}: "
+              + ", ".join(f"{k}={v}" for k, v in sorted(TUNING_SAVED.items())))
+except FileNotFoundError:
+    pass
+except (OSError, ValueError) as _e:
+    print(f"WARNING: saved tuning {TUNING_SAVE_FILE} ignored ({_e})")

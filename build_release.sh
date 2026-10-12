@@ -149,7 +149,12 @@ if [[ -d "${RELEASE_DIR}" ]]; then
 fi
 sudo mkdir -p "${RELEASE_DIR}"
 sudo cp -a "${DIST_DIR}/." "${RELEASE_DIR}/"
-sudo mkdir -p "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot"
+sudo mkdir -p "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot" "${RELEASE_DIR}/data"
+# Keep the saved live tuning (PARAMS page APPLY) from the previous release.
+if [[ -n "${BACKUP}" ]] && sudo test -d "${BACKUP}/data"; then
+  sudo cp -a "${BACKUP}/data/." "${RELEASE_DIR}/data/" 2>/dev/null || true
+  ok "Saved tuning carried over from the previous release"
+fi
 # Keep the engineer password from the previous release.
 if [[ -n "${BACKUP}" ]] && sudo test -f "${BACKUP}/engineer_auth.json"; then
   sudo cp -a "${BACKUP}/engineer_auth.json" "${RELEASE_DIR}/engineer_auth.json"
@@ -161,8 +166,8 @@ sudo chown -R root:"${SERVICE_USER}" "${RELEASE_DIR}"
 sudo chmod -R u=rwX,g=rX,o= "${RELEASE_DIR}"
 sudo chmod 0750 "${RELEASE_DIR}/main.bin"
 # Writable runtime folders for the controller only.
-sudo chown -R "${SERVICE_USER}:${SERVICE_USER}" "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot"
-sudo chmod 0750 "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot"
+sudo chown -R "${SERVICE_USER}:${SERVICE_USER}" "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot" "${RELEASE_DIR}/data"
+sudo chmod 0750 "${RELEASE_DIR}/logs" "${RELEASE_DIR}/analysis_plot" "${RELEASE_DIR}/data"
 ok "Installed; profile is at ${RELEASE_DIR}/profiles/${AGV_ID}.json (edit with sudo)"
 
 # ── 5. sudoers rule for the HMI restart button ───────────────────────────────
@@ -206,7 +211,7 @@ RestartSec=3
 ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=${RELEASE_DIR}/logs ${RELEASE_DIR}/analysis_plot
+ReadWritePaths=${RELEASE_DIR}/logs ${RELEASE_DIR}/analysis_plot ${RELEASE_DIR}/data
 
 [Install]
 WantedBy=multi-user.target

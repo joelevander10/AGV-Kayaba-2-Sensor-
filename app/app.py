@@ -785,6 +785,32 @@ def _tuning_values(config):
     return {k: getattr(config, k) for k in config.TUNABLE_SPECS}
 
 
+def _save_tuning(config):
+    """Persist every tunable that differs from the profile to
+    config.TUNING_SAVE_FILE (atomic write), so it is the default after a
+    restart. Nothing differs → the file is removed. Returns (ok, error)."""
+    import json
+    path = config.TUNING_SAVE_FILE
+    values = {k: getattr(config, k) for k in config.TUNABLE_SPECS
+              if getattr(config, k) != config.TUNABLE_DEFAULTS[k]}
+    try:
+        if not values:
+            if os.path.exists(path):
+                os.remove(path)
+        else:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump({"saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                           "values": values}, f, indent=2, sort_keys=True)
+            os.replace(tmp, path)
+        config.TUNING_SAVED = values
+        return True, None
+    except OSError as e:
+        logger.error("TUNING: could not save to %s — %s", path, e)
+        return False, str(e)
+
+
 @app.route("/api/params/tuning", methods=["GET", "POST"])
 @engineer_required
 def api_tuning():
@@ -796,6 +822,7 @@ def api_tuning():
             "values":   _tuning_values(config),
             "specs":    {k: list(v) for k, v in config.TUNABLE_SPECS.items()},
             "defaults": config.TUNABLE_DEFAULTS,
+            "saved":    sorted(config.TUNING_SAVED),
             "locked":   mode in ("running", "reversing", "emergency"),
         })
 
@@ -827,9 +854,11 @@ def api_tuning():
     for k, v in updates.items():
         setattr(config, k, v)
 
-    logger.info("TUNING: applied %s",
+    saved, save_err = _save_tuning(config)
+    logger.info("TUNING: applied%s %s", " and saved" if saved else " (NOT saved)",
                 ", ".join(f"{k}={v}" for k, v in sorted(updates.items())))
     return jsonify({"ok": True, "applied": sorted(updates),
+                    "saved": saved, "save_error": save_err,
                     "values": _tuning_values(config)})
 
 
@@ -844,9 +873,11 @@ def api_tuning_reset():
 
     for k, v in config.TUNABLE_DEFAULTS.items():
         setattr(config, k, v)
+    saved, save_err = _save_tuning(config)      # nothing differs → file removed
 
     logger.info("TUNING: reset all tunable parameters to profile defaults")
-    return jsonify({"ok": True, "values": _tuning_values(config)})
+    return jsonify({"ok": True, "saved": saved, "save_error": save_err,
+                    "values": _tuning_values(config)})
 
 
 _RESTART_CMD = ["/usr/bin/systemctl", "restart", "agv-controller.service"]
