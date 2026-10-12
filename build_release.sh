@@ -85,7 +85,9 @@ fi
 sudo apt-get -o DPkg::Lock::Timeout=900 update
 sudo apt-get -o DPkg::Lock::Timeout=900 install -y build-essential patchelf ccache python3-dev
 echo "    Installing Nuitka and the Python packages (pip)…"
-"${PY}" -m pip install --upgrade nuitka ordered-set zstandard
+# Nuitka is pinned below 4.3: 4.3's GTK (gi) plugin crashes on Ubuntu 22.04
+# ("Typelib file for namespace GLibUnix not found"). The AGV needs no GTK.
+"${PY}" -m pip install --upgrade "nuitka<4.3" ordered-set zstandard
 "${PY}" -m pip install -r "${SRC_DIR}/requirements.txt"
 ok "gcc, patchelf, ccache, Nuitka $("${PY}" -m nuitka --version 2>/dev/null | head -1)"
 
@@ -102,6 +104,9 @@ cd "${SRC_DIR}"
   --include-package=serial \
   --include-package=evdev \
   --nofollow-import-to=tkinter \
+  --nofollow-import-to=gi \
+  --disable-plugin=gi \
+  --enable-plugin=no-qt \
   --output-dir="${BUILD_DIR}" \
   --remove-output \
   --jobs="$(nproc)" \
