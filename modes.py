@@ -862,6 +862,11 @@ async def mode_manager(state, engine=None, manager=None):
         last_start = btn_start
         last_reset = btn_reset
 
+        # ENTER key (keyboard/keypad) = one RESET press, in any mode.
+        if state.kb_reset_request:
+            state.kb_reset_request = False
+            reset_rising = True
+
         # E key emergency stop: latched until RESET. The same RESET press then
         # also performs the normal emergency recovery below.
         if state.kb_estop and reset_rising:

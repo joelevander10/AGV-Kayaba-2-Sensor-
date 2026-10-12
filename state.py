@@ -176,6 +176,7 @@ class AMRState:
         self.kb_mode_override  = None
         self.kb_branch_request = None
         self.kb_estop          = False
+        self.kb_reset_request  = False   # ENTER key: one RESET pulse
         self.keypad_devices    = []
         # REVERSE speed override (m/s). Set by the "set_reverse_speed" action
         # (RFID CA: approach the stop marker at 0.1 m/s). None = use

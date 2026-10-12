@@ -546,7 +546,7 @@
     "DEFAULT_AREA": [false, false]
   },
   "keypad": {
-    "_comment": "Keypad USB (dongle) di PC AGV + keyboard laptop di halaman web MANUAL. WASD = gerak (tahan, hanya MANUAL), 1-5 = speed AUTO (APPROACH/SLOW/MEDIUM/HIGH/MAX), Z = pusher full UP, X = full DOWN, R = AUTO REVERSE start/stop, Q = ganti MANUAL/AUTO, 7/8/9/0 = start cabang 1/2/3/4, E = EMERGENCY STOP (lepas dengan RESET). NAME_CONTAINS kosong = semua keyboard USB dipakai; isi dengan sebagian nama keypad (lihat: python3 debugging/list_keypads.py) supaya hanya keypad itu yang dipakai. GRAB true = tombol tidak masuk ke desktop/terminal PC AGV.",
+    "_comment": "Keypad USB (dongle) di PC AGV + keyboard laptop di halaman web MANUAL. WASD = gerak (tahan, hanya MANUAL), 1-5 = speed AUTO (APPROACH/SLOW/MEDIUM/HIGH/MAX), Z = pusher full UP, X = full DOWN, R = AUTO REVERSE start/stop, Q = ganti MANUAL/AUTO, 7/8/9/0 = start cabang 1/2/3/4, E = EMERGENCY STOP (lepas dengan RESET), ENTER = RESET. NAME_CONTAINS kosong = semua keyboard USB dipakai; isi dengan sebagian nama keypad (lihat: python3 debugging/list_keypads.py) supaya hanya keypad itu yang dipakai. GRAB true = tombol tidak masuk ke desktop/terminal PC AGV.",
     "ENABLED": true,
     "NAME_CONTAINS": "XING WEI",
     "EXCLUDE_NAME_CONTAINS": ["AT Translated Set 2"],

@@ -16,6 +16,8 @@ Actions (one press)
     Q switch MANUAL <-> AUTO (overrides the selector until it is moved)
     7 / 8 / 9 / 0  start AUTO to branch 1 / 2 / 3 / 4  (ARMED; else just selects)
     E EMERGENCY STOP — latched, released only by RESET
+    ENTER RESET (same as the RESET button DI1: releases E-stop / emergency,
+          aborts AUTO / REVERSE back to ARMED)
 """
 import logging
 import time
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 MOVE_KEYS = {"w", "a", "s", "d"}
 SPEED_KEYS = {"1": "APPROACH", "2": "SLOW", "3": "MEDIUM", "4": "HIGH", "5": "MAX"}
 BRANCH_KEYS = {"7": "1", "8": "2", "9": "3", "0": "4"}
-ACTION_KEYS = set(SPEED_KEYS) | set(BRANCH_KEYS) | {"z", "x", "r", "q", "e"}
+ACTION_KEYS = set(SPEED_KEYS) | set(BRANCH_KEYS) | {"z", "x", "r", "q", "e", "enter"}
 MOVE_WATCHDOG_S = 0.4      # same 400 ms watchdog as the web jog buttons
 
 
@@ -81,6 +83,11 @@ def handle_key(state, key, source="keyboard"):
             state.kb_estop = True
             logger.critical("[%s] E — EMERGENCY STOP (press RESET to release)", source)
         return True, "EMERGENCY STOP — press RESET to release"
+
+    if key == "enter":
+        state.kb_reset_request = True        # one RESET pulse, read by mode_manager
+        logger.info("[%s] ENTER — RESET", source)
+        return True, "RESET"
 
     if key in SPEED_KEYS:
         speed = SPEED_KEYS[key]

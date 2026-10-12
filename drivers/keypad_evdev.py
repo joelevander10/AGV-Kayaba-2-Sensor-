@@ -47,6 +47,8 @@ def _code_map():
     m[ecodes.KEY_DOWN] = "s"
     m[ecodes.KEY_LEFT] = "a"
     m[ecodes.KEY_RIGHT] = "d"
+    m[ecodes.KEY_ENTER] = "enter"       # Enter key (and OK on many remotes) = RESET
+    m[ecodes.KEY_KPENTER] = "enter"
     return m
 
 
