@@ -207,6 +207,8 @@ Environment=PYTHONUNBUFFERED=1
 ExecStart=${RELEASE_DIR}/main.bin
 Restart=always
 RestartSec=3
+# Stop must never hang: SIGKILL if the controller hasn't exited 15 s after SIGTERM.
+TimeoutStopSec=15
 # Hardening: the controller cannot write anywhere except its own folders.
 ProtectSystem=full
 ProtectHome=true

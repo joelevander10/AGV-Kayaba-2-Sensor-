@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import signal
 import threading
 import time
@@ -213,6 +214,12 @@ async def run():
 
     def terminate_gracefully():
         logger.info("Termination signal received. Cancelling tasks...")
+        # Hard deadline: zeroing the outputs takes ~2-4 s. If anything still
+        # blocks after that (e.g. a driver thread stuck in a blocking read),
+        # exit anyway so "systemctl stop/restart" never hangs.
+        _t = threading.Timer(8.0, lambda: os._exit(0))
+        _t.daemon = True
+        _t.start()
         for task in asyncio.all_tasks(loop):
             task.cancel()
 
@@ -255,6 +262,11 @@ async def run():
             await shutdown()
         except asyncio.CancelledError:
             logger.warning("Shutdown interrupted (second Ctrl+C) — outputs may not be zeroed.")
+        # Outputs are zeroed — leave now instead of waiting in asyncio.run()'s
+        # cleanup for worker threads that may never return.
+        logger.info("Shutdown complete.")
+        logging.shutdown()
+        os._exit(0)
 
 if __name__ == "__main__":
     import sys
