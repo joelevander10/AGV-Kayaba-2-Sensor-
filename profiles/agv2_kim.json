@@ -545,6 +545,13 @@
     "DO_AREA": [3, 7],
     "DEFAULT_AREA": [false, false]
   },
+  "keypad": {
+    "_comment": "Keypad USB (dongle) di PC AGV + keyboard laptop di halaman web MANUAL. WASD = gerak (tahan, hanya MANUAL), 1-5 = speed AUTO (APPROACH/SLOW/MEDIUM/HIGH/MAX), Z = pusher full UP, X = full DOWN, R = AUTO REVERSE start/stop, Q = ganti MANUAL/AUTO, 7/8/9/0 = start cabang 1/2/3/4, E = EMERGENCY STOP (lepas dengan RESET). NAME_CONTAINS kosong = semua keyboard USB dipakai; isi dengan sebagian nama keypad (lihat: python3 debugging/list_keypads.py) supaya hanya keypad itu yang dipakai. GRAB true = tombol tidak masuk ke desktop/terminal PC AGV.",
+    "ENABLED": true,
+    "NAME_CONTAINS": "",
+    "EXCLUDE_NAME_CONTAINS": ["AT Translated Set 2"],
+    "GRAB": true
+  },
   "homepost": {
     "_comment": "RFID_TAG = tag homepost (sama dengan trigger arrive_homepost). DO_AT_HOME nyala selama AGV ada di homepost (dan tidak sedang RUNNING/REVERSING). ASSUME_AT_HOME_ON_BOOT: true = saat program start, AGV dianggap sudah di homepost (DO11 langsung nyala, DI4 langsung bisa dipakai). Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",
     "RFID_TAG": "0000",

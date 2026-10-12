@@ -100,6 +100,7 @@ cd "${SRC_DIR}"
   --include-data-dir=profiles=profiles \
   --include-module=can.interfaces.slcan \
   --include-package=serial \
+  --include-package=evdev \
   --nofollow-import-to=tkinter \
   --output-dir="${BUILD_DIR}" \
   --remove-output \
@@ -126,7 +127,8 @@ else
   ok "User ${SERVICE_USER} already exists"
 fi
 sudo usermod -aG dialout "${SERVICE_USER}"     # CANable2 USB serial adapter
-ok "${SERVICE_USER} is in group dialout"
+sudo usermod -aG input "${SERVICE_USER}"       # USB keypad (/dev/input/event*)
+ok "${SERVICE_USER} is in groups dialout, input"
 
 # ── 4. Install to RELEASE_DIR ────────────────────────────────────────────────
 say "Installing to ${RELEASE_DIR} (sudo)"
@@ -187,7 +189,7 @@ After=network-online.target
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
-SupplementaryGroups=dialout
+SupplementaryGroups=dialout input
 WorkingDirectory=${RELEASE_DIR}
 Environment=AGV_ID=${AGV_ID}
 Environment=MPLBACKEND=Agg

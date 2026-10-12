@@ -750,6 +750,7 @@ async def mode_manager(state, engine=None, manager=None):
     # ASSUME_AT_HOME_ON_BOOT) — see state.at_homepost.
     state.at_homepost = config.ASSUME_AT_HOME_ON_BOOT
     last_branch_di = [False] * len(config.DI_BRANCH_SELECT)
+    last_phys_manual = None   # physical MANUAL/AUTO selector, for the Q-key override
 
     async def _cancel_active():
         nonlocal active_task
@@ -788,6 +789,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.web_reverse_start   = False
         state.web_reverse_stop    = False
         state.call_run            = False   # next run is a normal run unless DI_CALL_START launches it
+        state.kb_branch_request   = None    # a branch key pressed before this transition is dropped
         # Don't touch state.trolley_hooked here — it reflects physical reality
         # (pusher.py keeps it live from the limit/prox sensors regardless of
         # AGV mode), not something a mode transition should reset. Pending
@@ -839,7 +841,16 @@ async def mode_manager(state, engine=None, manager=None):
             btn_reset      = state.web_btn_reset
         else:
             emergency_safe = not phys_emergency
-            switch_manual  = di[config.DI_MODE_SWITCH]
+            phys_manual    = bool(di[config.DI_MODE_SWITCH])
+            # Q key (keyboard/keypad) overrides the selector until the
+            # selector itself is moved — then the physical switch rules again.
+            if (last_phys_manual is not None and phys_manual != last_phys_manual
+                    and state.kb_mode_override is not None):
+                state.kb_mode_override = None
+                logger.info("Mode selector moved — keyboard MANUAL/AUTO override cleared")
+            last_phys_manual = phys_manual
+            switch_manual  = (phys_manual if state.kb_mode_override is None
+                              else state.kb_mode_override)
             # -1 = no physical START button (DI0 is the pusher button now);
             # AUTO is started by the branch buttons / CALL START instead.
             btn_start      = (0 <= config.DI_START < len(di)) and bool(di[config.DI_START])
@@ -850,6 +861,14 @@ async def mode_manager(state, engine=None, manager=None):
 
         last_start = btn_start
         last_reset = btn_reset
+
+        # E key emergency stop: latched until RESET. The same RESET press then
+        # also performs the normal emergency recovery below.
+        if state.kb_estop and reset_rising:
+            state.kb_estop = False
+            logger.info("Keyboard EMERGENCY STOP released by RESET.")
+        if state.kb_estop:
+            emergency_safe = False
 
         # CALL START (DI_CALL_START): physical-only, ignored in web_button_mode
         # like the other panel inputs. Only honoured at homepost (checked in
@@ -962,6 +981,18 @@ async def mode_manager(state, engine=None, manager=None):
                         if current_mode == "armed":
                             branch_start = True
                 last_branch_di[_i] = _pressed
+
+        # Keys 7/8/9/0 (keyboard/keypad): same as the branch buttons.
+        _kb_branch = state.kb_branch_request
+        if _kb_branch is not None:
+            state.kb_branch_request = None
+            if current_mode in ("running", "reversing", "emergency"):
+                logger.warning("Branch key %s ignored — AGV is %s", _kb_branch, current_mode)
+            else:
+                state.active_branch = _kb_branch
+                logger.info("Branch key — active_branch = %s", _kb_branch)
+                if current_mode == "armed":
+                    branch_start = True
 
         # ══════════════════════════════════════════════════════════════════════
         #  NORMAL TRANSITIONS

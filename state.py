@@ -166,6 +166,17 @@ class AMRState:
         # ARMED, stop only in REVERSING; stale pulses are dropped elsewhere.
         self.web_reverse_start = False
         self.web_reverse_stop  = False
+        # Keyboard / keypad control (keyboard_control.py):
+        #   kb_mode_override  None = follow the MANUAL/AUTO selector DI;
+        #                     True/False = Q key forced MANUAL/AUTO (cleared
+        #                     as soon as the physical selector is moved)
+        #   kb_branch_request one-shot branch "1".."4" from keys 7/8/9/0
+        #   kb_estop          E key emergency stop, latched until RESET
+        #   keypad_devices    names of USB keypads currently read on the AGV PC
+        self.kb_mode_override  = None
+        self.kb_branch_request = None
+        self.kb_estop          = False
+        self.keypad_devices    = []
         # REVERSE speed override (m/s). Set by the "set_reverse_speed" action
         # (RFID CA: approach the stop marker at 0.1 m/s). None = use
         # config.AUTO_TARGET_REVERSE_SPEED. Cleared when a reverse starts and

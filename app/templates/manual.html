@@ -514,6 +514,26 @@
   }
   .pbtn-rev-start { background: #e8b060; font-size: 12px; padding: 12px 2px; }
   .pbtn-rev-stop  { font-size: 12px; padding: 12px 2px; }
+  #kb-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: #b8b4ac;
+    border-left: 1px solid #a0a0a0;
+    flex-shrink: 0;
+    width: 190px;
+    align-self: stretch;
+    justify-content: center;
+  }
+  .pbtn-kb-on { background: #60b060; color: #fff; }
+  .kb-legend { font-size: 10px; line-height: 1.45; color: #000; }
+  .kb-legend b { display: inline-block; min-width: 34px; color: #000080; }
+  .kb-msg { font-size: 11px; font-weight: bold; text-align: center; min-height: 28px; color: #000080; }
+  .kb-msg.err { color: #c00000; }
+  .kb-estop { display: none; background: #c00000; color: #fff; font-weight: bold;
+              text-align: center; padding: 4px; font-size: 11px; }
+  .kb-estop.on { display: block; }
   .rev-msg {
     font-size: 10px;
     font-weight: bold;
@@ -664,6 +684,24 @@
     <button class="pbtn pbtn-rev-stop" id="rbtn-stop" disabled>&#9632;<br>STOP</button>
     <div class="rev-msg" id="rev-msg">Needs ARMED</div>
   </div>
+
+  <!-- ── Keyboard control (laptop keyboard; same keys as the AGV-PC keypad) ── -->
+  <div id="kb-panel">
+    <div class="pusher-title">KEYBOARD</div>
+    <button class="pbtn" id="kb-toggle">KEYBOARD<br>OFF</button>
+    <div class="kb-estop" id="kb-estop">E-STOP (E) — press RESET</div>
+    <div class="kb-legend">
+      <b>WASD</b> drive (hold, MANUAL)<br>
+      <b>1-5</b> speed APP/SLOW/MED/HIGH/MAX<br>
+      <b>Z / X</b> pusher full UP / DOWN<br>
+      <b>R</b> auto reverse start/stop<br>
+      <b>Q</b> switch MANUAL / AUTO<br>
+      <b>7 8 9 0</b> start branch 1-4<br>
+      <b>E</b> EMERGENCY STOP
+    </div>
+    <div class="kb-msg" id="kb-msg">Click KEYBOARD to enable</div>
+    <div class="kb-legend" id="kb-keypad">AGV keypad: —</div>
+  </div>
 </div>
 
 <div id="active-cmd"></div>
@@ -716,15 +754,37 @@
     sendCommand(null);
   }
 
-  // ── Keyboard arrow keys ───────────────────────────────────────────────────────
-  const _keysDown  = new Set();
-  const _arrowKeys = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+  // ── Keyboard: arrow keys always; WASD + action keys when KEYBOARD is ON ───
+  // Same key map as the USB keypad on the AGV PC (keyboard_control.py).
+  const _keysDown = new Set();               // 'up' | 'down' | 'left' | 'right'
+  const _dirOf = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  const _wasd  = { w: 'up', s: 'down', a: 'left', d: 'right' };
+  const _actionKeys = new Set(['1','2','3','4','5','7','8','9','0','z','x','r','q','e']);
+  const kbToggle = document.getElementById('kb-toggle');
+  const kbMsg    = document.getElementById('kb-msg');
+  let kbEnabled  = false;
+  try { kbEnabled = localStorage.getItem('agv_kb_enabled') === '1'; } catch (e) {}
+
+  function applyKbUi() {
+    kbToggle.innerHTML = 'KEYBOARD<br>' + (kbEnabled ? 'ON' : 'OFF');
+    kbToggle.classList.toggle('pbtn-kb-on', kbEnabled);
+    if (!kbEnabled) { kbMsg.textContent = 'Click KEYBOARD to enable'; kbMsg.className = 'kb-msg'; }
+    else if (kbMsg.textContent === 'Click KEYBOARD to enable') kbMsg.textContent = 'Keys active';
+  }
+  kbToggle.addEventListener('click', () => {
+    kbEnabled = !kbEnabled;
+    try { localStorage.setItem('agv_kb_enabled', kbEnabled ? '1' : '0'); } catch (e) {}
+    if (!kbEnabled) _releaseAllKeys();
+    applyKbUi();
+    kbToggle.blur();
+  });
+  applyKbUi();
 
   function _keyToCmd() {
-    const up    = _keysDown.has('ArrowUp');
-    const down  = _keysDown.has('ArrowDown');
-    const left  = _keysDown.has('ArrowLeft');
-    const right = _keysDown.has('ArrowRight');
+    let up = _keysDown.has('up'), down = _keysDown.has('down');
+    let left = _keysDown.has('left'), right = _keysDown.has('right');
+    if (up && down) up = down = false;
+    if (left && right) left = right = false;
     if (up   && left)  return 'fwd_left';
     if (up   && right) return 'fwd_right';
     if (down && left)  return 'rvs_left';
@@ -746,17 +806,54 @@
     sendCommand(cmd);
   }
 
-  document.addEventListener('keydown', e => {
-    if (!_arrowKeys.has(e.key)) return;
-    e.preventDefault();
-    if (_keysDown.has(e.key)) return;
-    _keysDown.add(e.key);
+  function _releaseAllKeys() {
+    if (_keysDown.size === 0) return;
+    _keysDown.clear();
     _updateKeyCmd();
+  }
+
+  function _sendAction(key) {
+    fetch('/api/keyboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key })
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        kbMsg.textContent = key.toUpperCase() + ': ' + (d.message || d.error || (ok ? 'OK' : 'failed'));
+        kbMsg.className = 'kb-msg' + (ok ? '' : ' err');
+      })
+      .catch(() => { kbMsg.textContent = 'Connection error'; kbMsg.className = 'kb-msg err'; });
+  }
+
+  function _ignoreEvent(e) {
+    const t = e.target;
+    return e.ctrlKey || e.metaKey || e.altKey ||
+           (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'));
+  }
+
+  document.addEventListener('keydown', e => {
+    if (_ignoreEvent(e)) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const dir = _dirOf[k] || (kbEnabled ? _wasd[k] : undefined);
+    if (dir) {
+      e.preventDefault();
+      if (_keysDown.has(dir)) return;
+      _keysDown.add(dir);
+      _updateKeyCmd();
+      return;
+    }
+    if (kbEnabled && _actionKeys.has(k)) {
+      e.preventDefault();
+      if (!e.repeat) _sendAction(k);
+    }
   });
 
   document.addEventListener('keyup', e => {
-    if (!_arrowKeys.has(e.key)) return;
-    _keysDown.delete(e.key);
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const dir = _dirOf[k] || _wasd[k];
+    if (!dir) return;
+    _keysDown.delete(dir);
     _updateKeyCmd();
   });
 
@@ -769,9 +866,9 @@
     btn.addEventListener('touchcancel', e => { e.preventDefault(); onRelease(btn); }, { passive: false });
   });
 
-  window.addEventListener('blur', () => { if (activeBtn) onRelease(activeBtn); });
+  window.addEventListener('blur', () => { if (activeBtn) onRelease(activeBtn); _releaseAllKeys(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && activeBtn) onRelease(activeBtn);
+    if (document.hidden) { if (activeBtn) onRelease(activeBtn); _releaseAllKeys(); }
   });
 
   // ══════════════════════════════════════════════════════════════════════════════
@@ -1055,6 +1152,10 @@
       // the estop or a jog watchdog lapsing on its own).
       setSenLamp('p-hooked', d.agv.trolley_hooked);
       document.getElementById('p-status').textContent = d.agv.pusher_status || '—';
+      document.getElementById('kb-estop').classList.toggle('on', !!d.agv.kb_estop);
+      const kp = d.agv.keypad_devices || [];
+      document.getElementById('kb-keypad').textContent =
+        'AGV keypad: ' + (kp.length ? kp.join(', ') : 'not connected');
       const serverEstop = !!d.agv.pusher_estop;
       if (serverEstop !== pusherEstopActive) {
         pusherEstopActive = serverEstop;

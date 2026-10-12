@@ -18,6 +18,7 @@ from safety_watchdog import safety_watchdog
 import modes
 from rfid_processor import rfid_processor
 from pusher import pusher_controller
+from drivers.keypad_evdev import keypad_reader
 from app.app import run_server
 
 logger = logging.getLogger(__name__)
@@ -231,6 +232,7 @@ async def run():
     core_tasks.append(rfid_processor(state, engine))
     core_tasks.append(modes.mode_manager(state, engine, manager))
     core_tasks.append(pusher_controller(state))
+    core_tasks.append(keypad_reader(state))      # USB keypad on the AGV PC (returns at once if disabled)
 
     # NAV/SEQ run under the manager so the HMI can toggle them live.
     # Boots from the profile JSON values (hierarchy already enforced in config);

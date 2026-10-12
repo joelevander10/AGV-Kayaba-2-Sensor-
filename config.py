@@ -369,6 +369,17 @@ LIDAR_RESUME_DELAY_S = float(_lidar.get("RESUME_DELAY_S", 2.0))
 LIDAR_DO_AREA        = list(_lidar.get("DO_AREA", [-1, -1]))
 LIDAR_DEFAULT_AREA   = [bool(v) for v in _lidar.get("DEFAULT_AREA", [False, False])]
 
+# ── USB keypad on the AGV PC (drivers/keypad_evdev.py) ───────────────────────
+# Keys: see keyboard_control.py. Any keyboard-type USB device is used unless
+# NAME_CONTAINS is set (then only devices whose name contains that text).
+# EXCLUDE_NAME_CONTAINS skips built-in keyboards. GRAB = keys go only to the
+# AGV (not to the desktop/terminal of the AGV PC).
+_keypad = _params.get("keypad", {})
+KEYPAD_ENABLED          = bool(_keypad.get("ENABLED", False))
+KEYPAD_NAME_CONTAINS    = str(_keypad.get("NAME_CONTAINS", ""))
+KEYPAD_EXCLUDE_CONTAINS = list(_keypad.get("EXCLUDE_NAME_CONTAINS", ["AT Translated Set 2"]))
+KEYPAD_GRAB             = bool(_keypad.get("GRAB", True))
+
 # ── Homepost ──────────────────────────────────────────────────────────────────
 # RFID_TAG: the homepost tag (keep in sync with the arrive_homepost sequence).
 # DO_AT_HOME: on while state.at_homepost and the AGV is not RUNNING/REVERSING.

@@ -13,3 +13,5 @@ python-can>=4.3.0
 pyserial>=3.5.0
 Flask>=3.0.0
 matplotlib>=3.8.0
+# USB keypad on the AGV PC (drivers/keypad_evdev.py) — Linux only
+evdev>=1.6.0; sys_platform == "linux"
