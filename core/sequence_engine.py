@@ -294,6 +294,17 @@ class SequenceEngine:
                          seq["name"], self._state.active_branch, required_branch)
             return False
 
+        # Opposite of requires_branch: skip this sequence when the AGV was
+        # dispatched to one of these branches (string or list), e.g. RFID C is
+        # skipped on branch 2 because branch 2 drops the trolley at 1C instead.
+        skip_branch = seq.get("skip_if_branch")
+        if skip_branch is not None:
+            skip_set = {skip_branch} if isinstance(skip_branch, str) else set(skip_branch)
+            if self._state.active_branch in skip_set:
+                logger.debug("[SEQ] '%s' ignored — active_branch is '%s'",
+                             seq["name"], self._state.active_branch)
+                return False
+
         # Generic "must NOT be set" gate — e.g. tag "1"'s reverse trigger is
         # skipped once ignore_rfid_1 is set (by the C1 stop), so backing out
         # of a dead-end doesn't re-arm itself on every pass over that tag.

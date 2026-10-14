@@ -79,7 +79,7 @@
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
     "ACCEL_RATE": 0.2,
-    "DECEL_RATE": 0.2, 
+    "DECEL_RATE": 0.2,
     "APPROACH_DECEL_RATE": 0.2
   },
   "pid_tuning": {
@@ -130,9 +130,7 @@
     "TRACK_WIDTH_M": 0.46,
     "CURVE_RADIUS_M": 1.5,
     "CURVE_DIRECTION": "left",
-    "CURVE_SPEED_MODES": [
-      "SLOW"
-    ],
+    "CURVE_SPEED_MODES": ["SLOW"],
     "FF_ALPHA": 0.15
   },
   "sequences": [
@@ -217,13 +215,45 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "RFID C — lepas trolley: AGV berhenti, pusher turun, tunggu proximity bawah DI15 ON (tanpa timeout, AGV tetap diam), tunggu 2 detik, lalu jalan maju SLOW sampai berhenti di RFID 0 (homepost). Tag placeholder: ganti 000C dengan hex tag sebenarnya.",
+      "_comment": "RFID C — lepas trolley: AGV berhenti, pusher turun, tunggu proximity bawah DI15 ON (tanpa timeout, AGV tetap diam), tunggu 2 detik, lalu jalan maju SLOW sampai berhenti di RFID 0 (homepost). Tag placeholder: ganti 000C dengan hex tag sebenarnya. TIDAK dipakai di cabang 2 (skip_if_branch \"2\") — cabang 2 lepas trolley di RFID 1C.",
       "name": "release_at_c",
       "category": "sequence",
       "trigger": {
         "type": "rfid",
         "rfid_tag": "000C"
       },
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "pusher_down"
+        },
+        {
+          "type": "wait_pusher_bottom"
+        },
+        {
+          "type": "wait_seconds",
+          "duration": 2.0
+        },
+        {
+          "type": "resume",
+          "speed": "SLOW"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running",
+      "skip_if_branch": "2"
+    },
+    {
+      "_comment": "RFID 1C — lepas trolley KHUSUS cabang 2 (requires_branch \"2\"), menggantikan RFID C. Urutan sama dengan C: AGV berhenti, pusher turun, tunggu proximity bawah DI15 ON (tanpa timeout), tunggu 2 detik, lalu jalan maju SLOW sampai berhenti di RFID 0 (homepost). Tag placeholder: ganti 001C dengan hex tag sebenarnya.",
+      "name": "release_at_1c_branch2",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "001C"
+      },
+      "requires_branch": "2",
       "actions": [
         {
           "type": "stop_agv"
@@ -348,7 +378,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Merge/reset — tag BB, selalu jalan (gak digating requires_branch), melepas active_branch balik ke null. Tag placeholder: ganti 00BB.",
+      "_comment": "Merge — tag BB, selalu jalan (gak digating requires_branch): kembali ke track kanan. Cabang (active_branch) TIDAK di-reset di sini lagi — cabang hanya di-reset saat AGV sampai di homepost (RFID 0). Tag placeholder: ganti 00BB.",
       "name": "branch_merge_reset",
       "category": "navigation",
       "trigger": {
@@ -359,9 +389,6 @@
         {
           "type": "set_track",
           "side": "right"
-        },
-        {
-          "type": "clear_branch"
         }
       ],
       "cooldown_s": 5.0,
@@ -461,7 +488,7 @@
       "cooldown_s": 3.0
     },
     {
-      "_comment": "RFID \"0\" — HOMEPOST. Berhenti dan keluar total dari AUTO (balik ke ARMED, mirip RESET manual) — beda sama checkpoint_stop yang cuma nunggu terus lanjut lagi. Operator harus tekan START lagi buat jalan. Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",
+      "_comment": "RFID \"0\" — HOMEPOST. Berhenti dan keluar total dari AUTO (balik ke ARMED, mirip RESET manual) — beda sama checkpoint_stop yang cuma nunggu terus lanjut lagi. Operator harus tekan START lagi buat jalan. Tag placeholder: ganti 0000 dengan hex tag sebenarnya. Juga reset pilihan cabang (clear_branch) — cabang hanya di-reset di homepost.",
       "name": "arrive_homepost",
       "category": "sequence",
       "trigger": {
@@ -474,6 +501,9 @@
           "type": "stop_agv"
         },
         {
+          "type": "clear_branch"
+        },
+        {
           "type": "go_home"
         }
       ],
@@ -481,7 +511,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "RFID B0 \u2014 berhenti dan keluar dari AUTO (balik ke ARMED), HANYA kalau run ini di-start dari DI4 CALL START (requires_flag call_run). Run dari tombol START biasa lewat B0 tanpa berhenti. Setelah berhenti di sini, operator tekan START untuk lanjut (run lanjutan itu tidak berhenti di B0 lagi). Tag placeholder: ganti 00B0 dengan hex tag sebenarnya.",
+      "_comment": "RFID B0 — berhenti dan keluar dari AUTO (balik ke ARMED), HANYA kalau run ini di-start dari DI4 CALL START (requires_flag call_run). Run dari tombol START biasa lewat B0 tanpa berhenti. Setelah berhenti di sini, operator tekan START untuk lanjut (run lanjutan itu tidak berhenti di B0 lagi). Tag placeholder: ganti 00B0 dengan hex tag sebenarnya.",
       "name": "stop_at_b0",
       "category": "sequence",
       "trigger": {

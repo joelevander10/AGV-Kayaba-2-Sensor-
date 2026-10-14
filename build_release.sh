@@ -72,23 +72,42 @@ ok "Python: ${PY} ($("${PY}" --version 2>&1))"
 ok "Profile ${AGV_ID} loads"
 
 # ── 1. Build tools ───────────────────────────────────────────────────────────
-say "Installing build tools (sudo)"
-# Internet is needed for apt and pip — fail fast instead of hanging.
-if ! timeout 8 bash -c 'exec 3<>/dev/tcp/archive.ubuntu.com/80' 2>/dev/null; then
-  die "No internet (cannot reach archive.ubuntu.com). Connect the WiFi to a network with internet and run again."
+say "Build tools"
+# Everything already installed (any build after the first)? Then no internet
+# is needed and apt/pip are skipped.
+tools_ready() {
+  command -v gcc >/dev/null && command -v patchelf >/dev/null && command -v ccache >/dev/null \
+    && "${PY}" - <<'PYCHK' 2>/dev/null
+import sysconfig, os, importlib, sys
+assert os.path.exists(os.path.join(sysconfig.get_paths()["include"], "Python.h"))
+import nuitka.Version as V
+major, minor = (int(x) for x in V.getNuitkaVersion().split(".")[:2])
+assert (major, minor) < (4, 3)
+for m in ("ordered_set", "zstandard", "pymodbus", "can", "serial", "flask", "matplotlib", "evdev"):
+    importlib.import_module(m)
+PYCHK
+}
+if tools_ready; then
+  ok "Already installed — skipping apt/pip (no internet needed)"
+else
+  echo "    Some build tools / packages are missing — installing them (needs internet)."
+  # Internet is needed for apt and pip — fail fast instead of hanging.
+  if ! timeout 8 bash -c 'exec 3<>/dev/tcp/archive.ubuntu.com/80' 2>/dev/null; then
+    die "No internet (cannot reach archive.ubuntu.com). Connect the WiFi to a network with internet and run again."
+  fi
+  ok "Internet OK"
+  # Ubuntu's automatic updates hold the apt lock for a while after boot.
+  if pgrep -x apt-get >/dev/null || pgrep -x apt >/dev/null || pgrep -x dpkg >/dev/null || pgrep -f unattended-upgrade >/dev/null; then
+    echo "    Ubuntu is installing updates in the background — waiting for it to finish (can take a few minutes)…"
+  fi
+  sudo apt-get -o DPkg::Lock::Timeout=900 update
+  sudo apt-get -o DPkg::Lock::Timeout=900 install -y build-essential patchelf ccache python3-dev
+  echo "    Installing Nuitka and the Python packages (pip)…"
+  # Nuitka is pinned below 4.3: 4.3's GTK (gi) plugin crashes on Ubuntu 22.04
+  # ("Typelib file for namespace GLibUnix not found"). The AGV needs no GTK.
+  "${PY}" -m pip install --upgrade "nuitka<4.3" ordered-set zstandard
+  "${PY}" -m pip install -r "${SRC_DIR}/requirements.txt"
 fi
-ok "Internet OK"
-# Ubuntu's automatic updates hold the apt lock for a while after boot.
-if pgrep -x apt-get >/dev/null || pgrep -x apt >/dev/null || pgrep -x dpkg >/dev/null || pgrep -f unattended-upgrade >/dev/null; then
-  echo "    Ubuntu is installing updates in the background — waiting for it to finish (can take a few minutes)…"
-fi
-sudo apt-get -o DPkg::Lock::Timeout=900 update
-sudo apt-get -o DPkg::Lock::Timeout=900 install -y build-essential patchelf ccache python3-dev
-echo "    Installing Nuitka and the Python packages (pip)…"
-# Nuitka is pinned below 4.3: 4.3's GTK (gi) plugin crashes on Ubuntu 22.04
-# ("Typelib file for namespace GLibUnix not found"). The AGV needs no GTK.
-"${PY}" -m pip install --upgrade "nuitka<4.3" ordered-set zstandard
-"${PY}" -m pip install -r "${SRC_DIR}/requirements.txt"
 ok "gcc, patchelf, ccache, Nuitka $("${PY}" -m nuitka --version 2>/dev/null | head -1)"
 
 # ── 2. Compile ───────────────────────────────────────────────────────────────

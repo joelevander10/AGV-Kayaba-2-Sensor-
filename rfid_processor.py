@@ -39,6 +39,9 @@ async def rfid_processor(state, engine):
             if state.current_mode not in ("running", "reversing") and not state.at_homepost:
                 state.at_homepost = True
                 logger.info("[RFID] Homepost tag read while stopped — at_homepost = True")
+                if state.active_branch is not None:
+                    logger.info("[RFID] Branch %s cleared at homepost", state.active_branch)
+                    state.active_branch = None
         else:
             if state.at_homepost:
                 state.at_homepost = False
