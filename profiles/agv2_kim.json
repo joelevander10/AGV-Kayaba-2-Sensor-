@@ -413,6 +413,40 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "Tag AE saat REVERSING — pilih track KIRI untuk mundur (sensor belakang). Sama seperti AE saat maju. Kalau AGV ambil cabang yang salah saat mundur, tukar 'left'/'right' di sini dan di BB reverse di bawah (sensor belakang bisa terbalik kiri-kanannya). Track mundur di-reset ke kanan setiap mulai mundur. Tag placeholder: ganti 00AE.",
+      "name": "reverse_fork_ae",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00AE"
+      },
+      "actions": [
+        {
+          "type": "set_reverse_track",
+          "side": "left"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "reversing"
+    },
+    {
+      "_comment": "Tag BB saat REVERSING — kembali ke track KANAN untuk mundur (sensor belakang). Tag placeholder: ganti 00BB.",
+      "name": "reverse_merge_bb",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00BB"
+      },
+      "actions": [
+        {
+          "type": "set_reverse_track",
+          "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "reversing"
+    },
+    {
       "_comment": "Dead-end siding menuju C1 — tag \"1\" trigger berhenti, jeda 2 detik, baru mulai mundur (PID reverse-follow). Digating oleh ignore_rfid_1 (di-set oleh C1) supaya gak re-trigger tiap lewat. Tag placeholder: ganti 0001 dengan hex tag sebenarnya.",
       "name": "reverse_at_1",
       "category": "sequence",

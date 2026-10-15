@@ -399,9 +399,10 @@ async def reverse_mode(state, engine=None):
     upgrading this code doesn't strand an AGV that hasn't had the second
     sensor fitted yet.
 
-    Track side is NOT selectable per-route like the front auto_mode fork —
-    reversing always follows the RIGHT track, unconditionally. There is no
-    equivalent of state.track_follow for REVERSE.
+    Track side: state.reverse_track ("right" by default, reset at the start
+    of every reverse). RFID tags with a "set_reverse_track" action (AE → left,
+    BB → right while REVERSING) switch it — the REVERSE equivalent of the
+    forward track_follow fork selection.
     """
     await motion.idle(state)
     await motion.set_reverse(state, 0.0)
@@ -450,6 +451,7 @@ async def reverse_mode(state, engine=None):
         return bool(_mk >= 0 and di is not None and len(di) > _mk and di[_mk])
     marker_prev = _marker_on()
     state.reverse_speed_override = None   # CA sets it again on this run
+    state.reverse_track = "right"          # AE / BB switch it during this run
     held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
     held_remain = 0.0     # timeout budget left when the hold started
 
@@ -555,9 +557,9 @@ async def reverse_mode(state, engine=None):
 
                 base_rpm = motion.mps_to_rpm(current_target_speed)
 
-                # REVERSE always follows the RIGHT track — no fork selection,
-                # unlike auto_mode's forward track_follow.
-                pv = sensor["right_mm"]
+                # Track chosen by RFID AE / BB while reversing (default right).
+                pv = (sensor["left_mm"] if state.reverse_track == "left"
+                      else sensor["right_mm"])
                 if pv is None or abs(pv) > sensor_max_mm:
                     await asyncio.sleep(config.DT)
                     continue
@@ -785,6 +787,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.homepost_request    = False
         state.leaving_home        = False
         state.reverse_speed_override = None
+        state.reverse_track       = "right"
         state.lidar_area          = list(config.LIDAR_DEFAULT_AREA)
         state.web_reverse_start   = False
         state.web_reverse_stop    = False

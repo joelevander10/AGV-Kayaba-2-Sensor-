@@ -86,6 +86,7 @@ class SequenceEngine:
             "pusher_down":       self._act_pusher_down,
             "wait_pusher_bottom": self._act_wait_pusher_bottom,
             "set_reverse_speed": self._act_set_reverse_speed,
+            "set_reverse_track": self._act_set_reverse_track,
             "set_lidar_area":    self._act_set_lidar_area,
         }
 
@@ -402,8 +403,7 @@ class SequenceEngine:
         # Fork selection: switch which MGS1600 track the steering PID follows.
         # The sensor always reports both tracks (superimposed on a single line),
         # so this is purely a host-side choice — no command is sent to the sensor.
-        # Front (auto_mode) only — REVERSE has no equivalent fork selection, it
-        # always follows the rear sensor's right_mm reading unconditionally.
+        # Front (auto_mode) only — REVERSE uses set_reverse_track instead.
         side = str(p.get("side", "")).lower()
         if side not in ("left", "right"):
             logger.warning("[SEQ] set_track: invalid side %r — ignored", p.get("side"))
@@ -495,6 +495,17 @@ class SequenceEngine:
             return
         self._state.reverse_speed_override = speed
         logger.info("[SEQ] Reverse speed → %.2f m/s", speed)
+
+    async def _act_set_reverse_track(self, p: dict):
+        """REVERSE fork selection: which rear-sensor track reverse_mode
+        follows — {"side": "left" | "right"} (e.g. RFID AE / BB while
+        REVERSING). Reset to "right" when the next reverse starts."""
+        side = str(p.get("side", "")).lower()
+        if side not in ("left", "right"):
+            logger.warning("[SEQ] set_reverse_track: invalid side %r — ignored", p.get("side"))
+            return
+        self._state.reverse_track = side
+        logger.info("[SEQ] Reverse track → %s", side.upper())
 
     async def _act_pusher_down(self, p: dict):
         """Command the pusher to full-travel DOWN — same path as the web FULL

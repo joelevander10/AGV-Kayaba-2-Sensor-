@@ -188,6 +188,7 @@ def _build_state_snapshot():
         "system_error_detail":  s.system_error_detail,
         "speed_mode":           s.speed_mode,
         "track_follow":         s.track_follow,
+        "reverse_track":        s.reverse_track,
         "active_branch":        s.active_branch,
         "at_homepost":          s.at_homepost,
         "lidar_enabled":        config.LIDAR_ENABLED,

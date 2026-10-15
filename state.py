@@ -183,6 +183,11 @@ class AMRState:
         # config.AUTO_TARGET_REVERSE_SPEED. Cleared when a reverse starts and
         # by _reset_sequence_state.
         self.reverse_speed_override = None
+        # REVERSE track selection ("left" | "right"), set by the
+        # "set_reverse_track" action (RFID AE / BB while REVERSING). Reset to
+        # "right" at the start of every reverse. Separate from track_follow so
+        # the forward fork choice is untouched.
+        self.reverse_track = "right"
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
         self.lidar_zone = None
