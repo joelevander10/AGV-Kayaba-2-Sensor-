@@ -321,6 +321,24 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "Tag A2 — KHUSUS cabang 2 (requires_branch \"2\"): pindah ke track KIRI. Cabang lain melewati tag ini tanpa aksi. Kecepatan tidak diubah. Tag placeholder: ganti 00A2 dengan hex tag sebenarnya.",
+      "name": "branch2_track_left_a2",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00A2"
+      },
+      "requires_branch": "2",
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "left"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
       "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track left (sama seperti TITIK 1).",
       "name": "branch_titik_3",
       "category": "navigation",
