@@ -338,9 +338,9 @@ PUSHER_IGNORE_TROLLEY_LIMIT = bool(_pusher.get("IGNORE_TROLLEY_LIMIT", False))
 
 # ── Horn ──────────────────────────────────────────────────────────────────────
 # DO_AUTO: on for the duration of any autonomous motion (RUNNING or
-# REVERSING). DO_ALARM: mirrors state.alarm_active, which nothing sets yet —
-# wire up the actual alarm condition(s) later (sequence action, watchdog
-# fault, etc.) and this output follows automatically.
+# REVERSING). DO_ALARM: mirrors state.alarm_active — set by the
+# "wait_trolley_caught" action (trolley not caught within alarm_after_s at the
+# CC / marker stop). While the alarm is on, DO_AUTO is switched off.
 _horn = _params.get("horn", {})
 DO_HORN_AUTO  = _horn.get("DO_AUTO",  -1)
 DO_HORN_ALARM = _horn.get("DO_ALARM", -1)

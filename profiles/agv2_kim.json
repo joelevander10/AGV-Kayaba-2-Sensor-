@@ -488,7 +488,7 @@
       "requires_mode": "reversing"
     },
     {
-      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING. Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu 2 detik, pusher naik otomatis (pusher_up), tunggu sampai limit switch trolley DI9 OFF (tersangkut) DAN proximity atas DI14 ON (wait_hooked, TANPA timeout — AGV tetap diam sampai dua-duanya terpenuhi), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag C1 diabaikan 5 detik (cooldown_s). Tag placeholder: ganti 00CC.",
+      "_comment": "Titik C1 (loading bay, ujung siding) — HANYA aktif saat REVERSING (tag CC atau marker DI10, mana yang duluan). Urutan: berhenti (tetap di mode REVERSE, rem), set ignore_rfid_1, tunggu limit switch trolley DI9 OFF (trolley tersangkut; tanpa timeout — kalau belum OFF setelah 10 detik, horn AUTO DO8 diganti horn ALARM DO9 sampai DI9 OFF atau RESET), tunggu 2 detik, pusher full UP, tunggu DI9 OFF DAN proximity atas DI14 ON (wait_hooked, tanpa timeout), baru keluar dari REVERSE (stop_reverse) dan jalan maju SLOW. Setelah itu tag CC diabaikan 5 detik (cooldown_s). Tag placeholder: ganti 00CC.",
       "name": "stop_at_c1",
       "category": "sequence",
       "trigger": {
@@ -502,6 +502,10 @@
         },
         {
           "type": "set_ignore_1"
+        },
+        {
+          "type": "wait_trolley_caught",
+          "alarm_after_s": 10.0
         },
         {
           "type": "wait_seconds",

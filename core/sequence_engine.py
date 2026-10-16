@@ -82,6 +82,7 @@ class SequenceEngine:
             "go_home":           self._act_go_home,
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
+            "wait_trolley_caught": self._act_wait_trolley_caught,
             "pusher_up":         self._act_pusher_up,
             "pusher_down":       self._act_pusher_down,
             "wait_pusher_bottom": self._act_wait_pusher_bottom,
@@ -555,6 +556,39 @@ class SequenceEngine:
         self._state.pusher_down_request = False
         self._state.pusher_up_request   = True
         logger.info("[SEQ] Pusher UP requested")
+
+    async def _act_wait_trolley_caught(self, p: dict):
+        """Block until the trolley limit switch(es) report the trolley caught
+        (DI_TROLLEY_LIMIT all OFF — NC switches). No timeout: the AGV stays
+        braked until it happens. If it has not happened after "alarm_after_s"
+        seconds (default 10), the horn switches from AUTO to ALARM
+        (state.alarm_active → DO_HORN_ALARM on, DO_HORN_AUTO off) until the
+        trolley is caught or the sequence is aborted (RESET / emergency).
+        Skipped when pusher.IGNORE_TROLLEY_LIMIT is true."""
+        if config.PUSHER_IGNORE_TROLLEY_LIMIT:
+            logger.info("[SEQ] wait_trolley_caught skipped (IGNORE_TROLLEY_LIMIT)")
+            return
+        alarm_after = float(p.get("alarm_after_s", 10.0))
+        l0, l1 = config.DI_TROLLEY_LIMIT
+        t0 = time.time()
+        logger.info("[SEQ] Waiting for trolley limit DI%s OFF (caught) — alarm after %.0fs", l0, alarm_after)
+        try:
+            while True:
+                if self._state.current_mode not in ("running", "reversing"):
+                    raise asyncio.CancelledError()
+                di = self._state.latest_di
+                if (di is not None and 0 <= l0 < len(di) and 0 <= l1 < len(di)
+                        and not di[l0] and not di[l1]):
+                    logger.info("[SEQ] Trolley caught (after %.1fs)", time.time() - t0)
+                    return
+                if not self._state.alarm_active and time.time() - t0 >= alarm_after:
+                    self._state.alarm_active = True
+                    logger.warning("[SEQ] Trolley not caught after %.0fs — ALARM horn ON", alarm_after)
+                await asyncio.sleep(0.05)
+        finally:
+            if self._state.alarm_active:
+                self._state.alarm_active = False
+                logger.info("[SEQ] ALARM horn OFF")
 
     async def _act_wait_hooked(self, p: dict):
         """Block until pusher.py confirms the trolley hitch is caught AND the

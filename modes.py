@@ -788,6 +788,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.leaving_home        = False
         state.reverse_speed_override = None
         state.reverse_track       = "right"
+        state.alarm_active        = False   # RESET / emergency / mode change silences the alarm horn
         state.lidar_area          = list(config.LIDAR_DEFAULT_AREA)
         state.web_reverse_start   = False
         state.web_reverse_stop    = False
@@ -820,7 +821,9 @@ async def mode_manager(state, engine=None, manager=None):
         # current_mode as of the end of the previous iteration — at most one
         # ~10ms loop tick stale, immaterial for a horn.
         if config.DO_HORN_AUTO >= 0:
-            state.set_do(config.DO_HORN_AUTO, current_mode in ("running", "reversing"))
+            # The ALARM horn replaces the AUTO horn while it is on.
+            state.set_do(config.DO_HORN_AUTO,
+                         current_mode in ("running", "reversing") and not state.alarm_active)
         if config.DO_HORN_ALARM >= 0:
             state.set_do(config.DO_HORN_ALARM, state.alarm_active)
         # Lidar field-set select outputs (pattern from set_lidar_area).
