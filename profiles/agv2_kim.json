@@ -65,7 +65,9 @@
   },
   "kinematics": {
     "WHEEL_DIAMETER": 0.18,
-    "GEAR_RATIO": 30
+    "GEAR_RATIO": 30,
+    "_comment_lookahead": "Jarak sumbu roda penggerak ke sensor MGS1600 depan (m) — dipakai PID auto-tune.",
+    "SENSOR_LOOKAHEAD_M": 0.076
   },
   "speeds": {
     "MANUAL_TARGET_HIGH_SPEED": 0.4,
@@ -642,6 +644,10 @@
     "NAME_CONTAINS": "XING WEI",
     "EXCLUDE_NAME_CONTAINS": ["AT Translated Set 2"],
     "GRAB": true
+  },
+  "brake": {
+    "_comment": "ACTIVE_WHEN_STOPPED true = rem driver (DO2/DO6) ON setiap kali AGV berhenti, di semua mode (ARMED, MANUAL diam, EMERGENCY, start-up). false = motor dilepas saat diam (AGV bisa didorong tangan).",
+    "ACTIVE_WHEN_STOPPED": true
   },
   "homepost": {
     "_comment": "RFID_TAG = tag homepost (sama dengan trigger arrive_homepost). DO_AT_HOME nyala selama AGV ada di homepost (dan tidak sedang RUNNING/REVERSING). ASSUME_AT_HOME_ON_BOOT: true = saat program start, AGV dianggap sudah di homepost (DO11 langsung nyala, DI4 langsung bisa dipakai). Tag placeholder: ganti 0000 dengan hex tag sebenarnya.",

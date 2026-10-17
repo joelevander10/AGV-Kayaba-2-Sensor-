@@ -16,7 +16,7 @@ import threading
 import functools
 import secrets
 import sys
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort
 # Make the project root importable even when this file is started from the
 # app/ folder or by an editor (engineer_auth, logger and config live there).
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -447,7 +447,7 @@ def api_branch():
     if _state is None:
         return jsonify({"error": "state not initialised"}), 503
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency"):
+    if mode in ("running", "reversing", "emergency", "autotune"):
         return jsonify({"error": f"Cannot change destination while AGV is {mode}"}), 403
 
     data   = request.get_json(silent=True) or {}
@@ -728,7 +728,7 @@ def api_set_features():
         return jsonify({"error": "state not initialised"}), 503
 
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency"):
+    if mode in ("running", "reversing", "emergency", "autotune"):
         return jsonify({"error": f"Cannot change settings while AGV is {mode}"}), 403
 
     if _manager is None:
@@ -781,7 +781,7 @@ def _tuning_guard():
     if _state is None:
         return {"error": "state not initialised"}, 503
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency"):
+    if mode in ("running", "reversing", "emergency", "autotune"):
         return {"error": f"Cannot change tuning while AGV is {mode}"}, 403
     return None
 
@@ -828,7 +828,7 @@ def api_tuning():
             "specs":    {k: list(v) for k, v in config.TUNABLE_SPECS.items()},
             "defaults": config.TUNABLE_DEFAULTS,
             "saved":    sorted(config.TUNING_SAVED),
-            "locked":   mode in ("running", "reversing", "emergency"),
+            "locked":   mode in ("running", "reversing", "emergency", "autotune"),
         })
 
     err = _tuning_guard()
@@ -944,7 +944,7 @@ def api_restart():
         return jsonify({"error": "state not initialised"}), 503
 
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency"):
+    if mode in ("running", "reversing", "emergency", "autotune"):
         return jsonify({"error": f"Cannot restart while AGV is {mode}"}), 403
 
     # Verify passwordless sudo is configured for exactly this command before
@@ -1012,6 +1012,86 @@ def api_calibration_start():
     _state.calibration_request = True
     logger.warning("[Calib] start requested via HMI (wheel=%s)", wheel)
     return jsonify({"ok": True, "wheel": wheel})
+
+
+# ── PID auto-tune (relay test, see autotune.py) ─────────────────────────────
+
+@app.route("/api/autotune", methods=["GET"])
+def api_autotune_status():
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    return jsonify({"mode": _state.current_mode, "running": _state.current_mode == "autotune",
+                    **_state.autotune_status})
+
+
+@app.route("/api/autotune/start", methods=["POST"])
+@engineer_required
+def api_autotune_start():
+    import autotune, math
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    if _state.current_mode != "armed":
+        return jsonify({"error": f"Auto-tune starts only from ARMED (now {_state.current_mode})"}), 403
+    raw = _state.latest_sensor
+    if not (raw and raw.get("tape_detected")):
+        return jsonify({"error": "no tape under the front sensor"}), 409
+    data = request.get_json(silent=True) or {}
+    mode = str(data.get("speed_mode", "HIGH")).upper()
+    if mode not in autotune.MODE_INFO:
+        return jsonify({"error": f"speed_mode must be one of {sorted(autotune.MODE_INFO)}"}), 400
+    limits = {"relay_rpm": (5, 400), "err_limit_mm": (10, 90), "max_s": (5, 120), "cycles": (2, 10)}
+    params = {"speed_mode": mode}
+    for k, (lo, hi) in limits.items():
+        try:
+            v = float(data.get(k, autotune.DEFAULTS[k]))
+        except (TypeError, ValueError):
+            return jsonify({"error": f"{k} must be a number"}), 400
+        if not (math.isfinite(v) and lo <= v <= hi):
+            return jsonify({"error": f"{k} must be in [{lo}, {hi}]"}), 400
+        params[k] = v
+    _state.autotune_params = params
+    _state.autotune_status.update(autotune.new_status())
+    _state.autotune_status["phase"] = "starting"
+    _state.autotune_request = True
+    logger.warning("[AUTOTUNE] start requested via HMI: %s", params)
+    return jsonify({"ok": True, "params": params})
+
+
+@app.route("/api/autotune/stop", methods=["POST"])
+def api_autotune_stop():
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    _state.autotune_request = False
+    return jsonify({"ok": True})
+
+
+# ── Run logs (CSV / PNG written by debugging/plotter.py) ────────────────────
+
+_RUN_FILE_RE = re.compile(r"^[0-9]{8}_[0-9]{6}_[A-Za-z0-9_]+\.(csv|png)$")
+
+@app.route("/api/runs")
+@engineer_required
+def api_runs():
+    from debugging.plotter import PLOT_DIR
+    try:
+        names = [n for n in os.listdir(PLOT_DIR) if _RUN_FILE_RE.match(n)]
+    except FileNotFoundError:
+        names = []
+    names.sort(reverse=True)
+    out = []
+    for n in names[:60]:
+        st = os.stat(os.path.join(PLOT_DIR, n))
+        out.append({"name": n, "bytes": st.st_size})
+    return jsonify({"files": out})
+
+
+@app.route("/api/runs/<name>")
+@engineer_required
+def api_run_file(name):
+    from debugging.plotter import PLOT_DIR
+    if not _RUN_FILE_RE.match(name):
+        abort(404)
+    return send_from_directory(PLOT_DIR, name, as_attachment=name.endswith(".csv"))
 
 
 @app.route("/api/calibration/stop", methods=["POST"])

@@ -157,6 +157,12 @@ REVERSE_TIMEOUT_S            = _params["speeds"].get("REVERSE_TIMEOUT_S", 30.0)
 # -1.0 = original convention; +1.0 flips P/I/D together if the AGV steers
 # AWAY from the tape instead of back onto it. Only -1.0 or +1.0.
 ERROR_SIGN_FORWARD = float(_params["pid_tuning"].get("ERROR_SIGN_FORWARD", -1.0))
+# Distance from the drive-wheel axle to the front MGS1600 (m) — used by the
+# PID auto-tune to separate the sensor's look-ahead from the drive lag.
+# Brake whenever the AGV stands still (ARMED, MANUAL stopped, EMERGENCY,
+# startup…). false = old behaviour: motors released when idle (can be pushed).
+BRAKE_WHEN_STOPPED = bool(_params.get("brake", {}).get("ACTIVE_WHEN_STOPPED", True))
+SENSOR_LOOKAHEAD_M = float(_params.get("kinematics", {}).get("SENSOR_LOOKAHEAD_M", 0.076))
 KP = _params["pid_tuning"]["KP"]
 TD = _params["pid_tuning"]["TD"]
 N  = _params["pid_tuning"]["N"]

@@ -230,6 +230,19 @@
   #tuning-msg.warn { color: #a00000; font-weight: bold; }
   #tuning-msg.ok   { color: #006000; font-weight: bold; }
 
+  /* ── PID auto-tune + run logs ── */
+  #at-card, #logs-card { margin-bottom: 15px; }
+  .at-row { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 15px; align-items: flex-end; }
+  .at-row label { display: flex; flex-direction: column; font-size: 13px; font-weight: bold; color: #303060; gap: 3px; }
+  .at-row select, .at-row input { font-family: inherit; font-size: 15px; width: 110px; padding: 3px 5px; }
+  #at-msg, #logs-msg { padding: 8px 15px; font-size: 15px; border-top: 1px solid #b0b0b0; min-height: 18px; color: #303060; }
+  #at-msg.warn { color: #a00000; font-weight: bold; } #at-msg.ok { color: #006000; font-weight: bold; }
+  .at-note { padding: 0 15px 8px; font-size: 13px; color: #604000; }
+  #at-result table, #logs-list table { border-collapse: collapse; margin: 6px 15px 12px; font-size: 14px; }
+  #at-result td, #at-result th, #logs-list td { border: 1px solid #b0b0b0; padding: 4px 8px; text-align: left; }
+  #at-result th { background: #d8d8d8; }
+  #logs-list a { color: #000080; font-weight: bold; }
+
   /* ── Wheel-speed calibration ── */
   #calib-card { margin-bottom: 15px; }
   .wheel-sel { display: flex; gap: 8px; flex-shrink: 0; }
@@ -329,6 +342,29 @@
     <button class="tune-btn revert" id="tune-revert">RESET TO PROFILE</button>
   </div>
   <div id="tuning-msg" class="info">—</div>
+</div>
+
+<div id="at-card" class="section raised">
+  <div class="section-title">PID AUTO-TUNE &nbsp;<span class="dep-note">(relay test · ARMED on a STRAIGHT tape · area clear)</span></div>
+  <div class="at-row">
+    <label>Speed mode
+      <select id="at-mode"><option>MAX</option><option selected>HIGH</option><option>MEDIUM</option><option>SLOW</option></select></label>
+    <label>Relay (rpm)<input id="at-relay" type="number" value="20" min="5" max="400" step="5"></label>
+    <label>Max error (mm)<input id="at-limit" type="number" value="50" min="10" max="90" step="5"></label>
+    <label>Time limit (s)<input id="at-time" type="number" value="30" min="5" max="120" step="5"></label>
+    <label>Cycles<input id="at-cycles" type="number" value="4" min="2" max="10" step="1"></label>
+    <button class="cal-btn start" id="at-start">START</button>
+    <button class="cal-btn stop" id="at-stop">STOP</button>
+  </div>
+  <div class="at-note">The AGV accelerates to the mode's speed on its current gains, then weaves gently around the tape for up to 10 s (relay test), brakes, and fits a model of how it steers. Suggested KP / TD / N are shown below — press APPLY on one, then test a normal run. Needs about (speed × time limit) metres of straight tape. RFID tags are ignored during the test. RESET or STOP aborts. MEDIUM and SLOW share the SLOW gains.</div>
+  <div id="at-msg">—</div>
+  <div id="at-result"></div>
+</div>
+
+<div id="logs-card" class="section raised">
+  <div class="section-title">RUN LOGS &nbsp;<span class="dep-note">(one CSV + plot per AUTO run and per auto-tune · newest first)</span></div>
+  <div id="logs-list"></div>
+  <div id="logs-msg">—</div>
 </div>
 
 <div class="grid" id="params-grid"></div>
@@ -728,9 +764,96 @@ function pollCalib() {
 }
 pollCalib();
 setInterval(pollCalib, 500);
+
+// ── PID auto-tune ───────────────────────────────────────────────────────────
+const _atMsg = document.getElementById('at-msg');
+const _atRes = document.getElementById('at-result');
+let _atShownResult = null;
+function _atSet(t, cls) { _atMsg.textContent = t; _atMsg.className = cls || ''; }
+document.getElementById('at-start').addEventListener('click', () => {
+  const body = {
+    speed_mode: document.getElementById('at-mode').value,
+    relay_rpm: +document.getElementById('at-relay').value,
+    err_limit_mm: +document.getElementById('at-limit').value,
+    max_s: +document.getElementById('at-time').value,
+    cycles: +document.getElementById('at-cycles').value,
+  };
+  _atSet('Starting…');
+  fetch('/api/autotune/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => { if (!ok) _atSet(d.error || 'Failed to start', 'warn'); })
+    .catch(() => _atSet('Connection error', 'warn'));
+});
+document.getElementById('at-stop').addEventListener('click', () => {
+  fetch('/api/autotune/stop', { method: 'POST' }).catch(() => {});
+});
+function _atRender(r) {
+  const keys = Object.keys(r.current);
+  let h = '<table><tr><th>Measured (' + r.mode + ')</th><th colspan="' + (keys.length + 1) + '">' +
+          'steering gain Kg ' + r.kg + ' · drive lag ≈ ' + r.lag_s + ' s · net lead ' + r.net_lead_s +
+          ' s · fit R² ' + r.r2 + ' · ' + r.relay_s + ' s relay, ' + r.cycles + ' weaves</th></tr>';
+  (r.warnings || []).forEach(w => { h += '<tr><td colspan="' + (keys.length + 2) + '" style="color:#a00000;font-weight:bold">⚠ ' + w + '</td></tr>'; });
+  h += '<tr><th>Gains</th>' + keys.map(k => '<th>' + k + '</th>').join('') + '<th></th></tr>';
+  h += '<tr><td>Current</td>' + keys.map(k => '<td>' + r.current[k] + '</td>').join('') + '<td></td></tr>';
+  r.suggestions.forEach((s, i) => {
+    h += '<tr><td>' + s.label + ' <span style="color:#606060">(ζ ' + s.zeta + ', ωn ' + s.wn + ')</span></td>' +
+         keys.map(k => '<td>' + s.values[k] + '</td>').join('') +
+         '<td><button class="cal-btn start at-apply" data-i="' + i + '">APPLY</button></td></tr>';
+  });
+  h += '</table>';
+  _atRes.innerHTML = h;
+  _atRes.querySelectorAll('.at-apply').forEach(b => b.addEventListener('click', () => {
+    const vals = r.suggestions[+b.dataset.i].values;
+    fetch('/api/params/tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) })
+      .then(x => x.json().then(d => ({ ok: x.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { _atSet(d.error || 'Apply failed', 'warn'); return; }
+        _atSet('Applied' + (d.saved ? ' and SAVED: ' : ' (not saved): ') + JSON.stringify(vals) + ' — test a normal run.', 'ok');
+        if (typeof _tLoad === 'function') _tLoad();
+      })
+      .catch(() => _atSet('Connection error', 'warn'));
+  }));
+}
+function pollAutotune() {
+  fetch('/api/autotune').then(r => r.json()).then(d => {
+    const running = d.mode === 'autotune' || d.phase === 'starting';
+    document.getElementById('at-start').disabled = running || d.mode !== 'armed';
+    document.getElementById('at-stop').disabled = !running;
+    if (d.phase && d.phase !== 'idle') {
+      const cls = d.phase === 'done' ? 'ok' : (d.phase === 'failed' || d.phase === 'aborted') ? 'warn' : '';
+      _atSet(d.phase.toUpperCase() + (d.elapsed_s ? ' · ' + d.elapsed_s + ' s' : '') + (d.message ? ' — ' + d.message : ''), cls);
+    }
+    if (d.result && d.result !== _atShownResult && JSON.stringify(d.result) !== JSON.stringify(_atShownResult)) {
+      _atShownResult = d.result; _atRender(d.result); loadLogs();
+    }
+  }).catch(() => {});
+}
+pollAutotune();
+setInterval(pollAutotune, 500);
+
+// ── Run logs ────────────────────────────────────────────────────────────────
+function loadLogs() {
+  fetch('/api/runs').then(r => r.json().then(d => ({ ok: r.ok, d }))).then(({ ok, d }) => {
+    const msg = document.getElementById('logs-msg');
+    if (!ok) { msg.textContent = d.error || 'Engineer login needed'; return; }
+    const files = d.files || [];
+    const runs = {};
+    files.forEach(f => { const k = f.name.replace(/_(data\.csv|plot\.png|analysisplot\.png)$/, ''); (runs[k] = runs[k] || []).push(f); });
+    let h = '<table>';
+    Object.keys(runs).sort().reverse().slice(0, 20).forEach(k => {
+      h += '<tr><td>' + k + '</td><td>' + runs[k].map(f =>
+        '<a href="/api/runs/' + encodeURIComponent(f.name) + '" target="_blank">' +
+        (f.name.endsWith('.csv') ? 'CSV' : 'PLOT') + '</a>').join(' · ') + '</td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('logs-list').innerHTML = files.length ? h : '';
+    msg.textContent = files.length ? 'Download the CSV of an oscillating run and send it for analysis.' : 'No runs recorded yet.';
+  }).catch(() => {});
+}
+loadLogs();
 </script>
 <script>
-window.addEventListener('engineer-change', () => { loadParams(); _tLoad(); });
+window.addEventListener('engineer-change', () => { loadParams(); _tLoad(); loadLogs(); });
 </script>
 {% include '_engineer.html' %}
 </body>

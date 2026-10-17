@@ -5,6 +5,7 @@ import time
 import config
 import motion
 import calibration
+import autotune
 
 from core.pid import PIDController
 from debugging.plotter import RunRecorder
@@ -90,8 +91,7 @@ async def auto_mode(state, engine=None):
         while True:
 
             # ── Emergency guard ───────────────────────────────────────────────
-            # Use idle (not brake) so the wheel brakes are released and the AGV
-            # can be pushed free by hand during an emergency.
+            # idle(): brake follows brake.ACTIVE_WHEN_STOPPED (default ON).
             if state.emergency_active:
                 await motion.idle(state)
                 current_target_speed = 0.0
@@ -294,6 +294,9 @@ async def auto_mode(state, engine=None):
                 # ── PID compute ───────────────────────────────────────────────
                 left_rpm, right_rpm, dbg = pid.compute(pv, base_rpm, error_sign,
                                                        feedforward=ff_filtered)
+                # Near top speed keep the steering difference instead of
+                # clipping the faster wheel at 5 V (see motion.keep_steering).
+                left_rpm, right_rpm = motion.keep_steering(left_rpm, right_rpm)
 
                 left_v  = motion.rpm_to_voltage(left_rpm,  "left")
                 right_v = motion.rpm_to_voltage(right_rpm, "right")
@@ -306,10 +309,18 @@ async def auto_mode(state, engine=None):
                 state.pid_output   = dbg["output"]
                 state.target_speed = current_target_speed
 
-                recorder.record(error_mm=dbg["e"], left_rpm=left_rpm,
-                                right_rpm=right_rpm, pid_output=dbg["output"],
-                                d_term=dbg["d"],
-                                target_speed_ms=target_speed)
+                recorder.record(
+                    phase=state.speed_mode, speed_mode=state.speed_mode,
+                    target_speed_ms=target_speed, cmd_speed_ms=current_target_speed,
+                    track=state.track_follow,
+                    raw_left_mm=sensor.get("left_mm"), raw_right_mm=sensor.get("right_mm"),
+                    pv_mm=pv, error_mm=dbg["e"],
+                    p_term=dbg["p"], i_term=dbg["i"], d_term=dbg["d"],
+                    pid_output=dbg["output"], ff_rpm=dbg["feedforward"],
+                    speed_red_rpm=dbg["speed_reduction"],
+                    left_rpm=left_rpm, right_rpm=right_rpm,
+                    kp=pid._kp, td=pid._td, n=pid._n, v_red=pid._v_red_coef,
+                    lidar_zone=state.lidar_zone)
 
                 # Throttle the per-cycle PID debug line (~every 25 cycles) so an
                 # accidental console DEBUG level can't flood at 100 Hz.
@@ -788,6 +799,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.track_follow        = "right"
         state.pending_sequence    = None
         state.calibration_request = False
+        state.autotune_request    = False
         state.reverse_request     = False
         state.homepost_request    = False
         state.leaving_home        = False
@@ -828,7 +840,7 @@ async def mode_manager(state, engine=None, manager=None):
         if config.DO_HORN_AUTO >= 0:
             # The ALARM horn replaces the AUTO horn while it is on.
             state.set_do(config.DO_HORN_AUTO,
-                         current_mode in ("running", "reversing") and not state.alarm_active)
+                         current_mode in ("running", "reversing", "autotune") and not state.alarm_active)
         if config.DO_HORN_ALARM >= 0:
             state.set_do(config.DO_HORN_ALARM, state.alarm_active)
         # Lidar field-set select outputs (pattern from set_lidar_area).
@@ -896,7 +908,7 @@ async def mode_manager(state, engine=None, manager=None):
         last_call   = btn_call
 
         # IO TEST MODE must never survive into autonomous motion.
-        if state.io_test_mode and current_mode in ("running", "reversing", "calibrate"):
+        if state.io_test_mode and current_mode in ("running", "reversing", "calibrate", "autotune"):
             state.io_test_mode = False
             state.clear_do_overrides()
             logger.warning("IO TEST MODE exited automatically — AGV is %s", current_mode)
@@ -931,8 +943,9 @@ async def mode_manager(state, engine=None, manager=None):
             if current_mode != "emergency":
                 logger.critical("!! EMERGENCY — all motion stopped")
                 await _cancel_active()
-                # Always idle (not brake) on emergency — brakes released so the
-                # AGV can be pushed free by hand.
+                # idle(): brake ON when brake.ACTIVE_WHEN_STOPPED (default);
+                # set it false in the profile to release the motors on
+                # emergency so the AGV can be pushed by hand.
                 await _flush_and_idle()
                 _reset_sequence_state()
                 state.emergency_active = True
@@ -1098,6 +1111,25 @@ async def mode_manager(state, engine=None, manager=None):
             active_task        = asyncio.create_task(
                 calibration.calibrate_mode(state, manager))
             current_mode       = "calibrate"
+            state.current_mode = current_mode
+
+        elif current_mode == "armed" and state.autotune_request:
+            # PID auto-tune (relay test) on a straight tape — see autotune.py.
+            # Tape check is done by the web endpoint; RFID tags are ignored.
+            logger.info("AUTOTUNE START — launching relay test.")
+            state.at_homepost  = False
+            await _cancel_active()
+            await _flush_and_idle()
+            active_task        = asyncio.create_task(autotune.autotune_mode(state))
+            current_mode       = "autotune"
+            state.current_mode = current_mode
+
+        elif current_mode == "autotune" and (reset_rising or not state.autotune_request):
+            logger.info("AUTOTUNE END — returning to ARMED.")
+            state.autotune_request = False
+            await _cancel_active()
+            await _flush_and_brake()
+            current_mode       = "armed"
             state.current_mode = current_mode
 
         elif current_mode == "calibrate" and (reset_rising or not state.calibration_request):

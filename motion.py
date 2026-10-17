@@ -23,6 +23,18 @@ def rpm_to_voltage(rpm, side="left"):
     k, o = _cal(side)
     return max(0.0, min(5.0, (rpm - o) / k))
 
+def max_rpm(side="left"):
+    """Fastest a wheel can be commanded (5 V on the speed AO)."""
+    return voltage_to_rpm(5.0, side)
+
+def keep_steering(left_rpm, right_rpm):
+    """If either wheel is asked for more than it can do (5 V), slow BOTH
+    wheels by the excess so the left/right difference — the steering — is
+    kept. Without this, near top speed the faster wheel is clipped at 5 V and
+    small steering corrections are lost, which makes the AGV weave."""
+    excess = max(left_rpm - max_rpm("left"), right_rpm - max_rpm("right"), 0.0)
+    return left_rpm - excess, right_rpm - excess
+
 def mps_to_rpm(v_meter_per_second):
     v_meter_per_minute = v_meter_per_second * 60
     wheel_rpm = v_meter_per_minute / config.WHEEL_CIRCUMFERENCE
@@ -111,13 +123,17 @@ async def set_brake(state):
     state.set_do(rch["do_brake"], True)
 
 async def idle(state):
+    """Stopped: speed 0, no direction. The brake is ON when the profile's
+    brake.ACTIVE_WHEN_STOPPED is true (default) — in every mode, including
+    EMERGENCY — otherwise the motors are released (AGV can be pushed)."""
+    brake = config.BRAKE_WHEN_STOPPED
     lch = config.MOTOR_CHANNELS["left"]
     rch = config.MOTOR_CHANNELS["right"]
     state.set_ao(lch["ao_speed"], 0.0)
     state.set_ao(rch["ao_speed"], 0.0)
     state.set_do(lch["do_fwd"],   False)
     state.set_do(lch["do_rev"],   False)
-    state.set_do(lch["do_brake"], False)
+    state.set_do(lch["do_brake"], brake)
     state.set_do(rch["do_fwd"],   False)
     state.set_do(rch["do_rev"],   False)
-    state.set_do(rch["do_brake"], False)
+    state.set_do(rch["do_brake"], brake)
