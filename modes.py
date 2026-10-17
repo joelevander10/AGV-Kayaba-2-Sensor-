@@ -171,7 +171,12 @@ async def auto_mode(state, engine=None):
             # Only switch gains when speed_mode actually changes — avoids
             # redundant recomputation of the derivative filter coefficient.
             if state.speed_mode != last_speed_mode:
-                if state.speed_mode in ("HIGH", "MAX"):
+                if state.speed_mode == "MAX":
+                    pid.update_gains(config.KP_MAX, config.TD_MAX, config.N_MAX,
+                                     config.V_RED_COEF_MAX,
+                                     clamp_hi=config.OUTPUT_CLAMP_RPM,
+                                     clamp_lo=-config.OUTPUT_CLAMP_RPM)
+                elif state.speed_mode == "HIGH":
                     pid.update_gains(config.KP, config.TD, config.N,
                                      config.V_RED_COEF,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,

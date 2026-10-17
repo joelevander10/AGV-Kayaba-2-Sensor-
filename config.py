@@ -161,6 +161,13 @@ KP = _params["pid_tuning"]["KP"]
 TD = _params["pid_tuning"]["TD"]
 N  = _params["pid_tuning"]["N"]
 
+# PID gains — MAX speed mode (own set so 1.0 m/s can be tuned separately from
+# HIGH). Falls back to the HIGH gains when a profile has no *_MAX keys.
+KP_MAX         = _params["pid_tuning"].get("KP_MAX",         _params["pid_tuning"]["KP"])
+TD_MAX         = _params["pid_tuning"].get("TD_MAX",         _params["pid_tuning"]["TD"])
+N_MAX          = _params["pid_tuning"].get("N_MAX",          _params["pid_tuning"]["N"])
+V_RED_COEF_MAX = _params["pid_tuning"].get("V_RED_COEF_MAX", _params["pid_tuning"]["V_RED_COEF"])
+
 KP_SLOW = _params["pid_tuning"]["KP_SLOW"]
 TD_SLOW = _params["pid_tuning"]["TD_SLOW"]
 N_SLOW  = _params["pid_tuning"]["N_SLOW"]
@@ -563,6 +570,11 @@ TUNABLE_SPECS = {   # key: (min, max)
     "TD":                             (0.0,   5.0),
     "N":                              (1.0,   100.0),
     "V_RED_COEF":                     (0.0,   50.0),
+    # PID gains — MAX
+    "KP_MAX":                         (0.0,   50.0),
+    "TD_MAX":                         (0.0,   5.0),
+    "N_MAX":                          (1.0,   100.0),
+    "V_RED_COEF_MAX":                 (0.0,   50.0),
     # PID gains — SLOW
     "KP_SLOW":                        (0.0,   50.0),
     "TD_SLOW":                        (0.0,   5.0),
