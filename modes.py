@@ -176,6 +176,11 @@ async def auto_mode(state, engine=None):
                                      config.V_RED_COEF_MAX,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,
                                      clamp_lo=-config.OUTPUT_CLAMP_RPM)
+                elif state.speed_mode == "MEDIUM":
+                    pid.update_gains(config.KP_MEDIUM, config.TD_MEDIUM, config.N_MEDIUM,
+                                     config.V_RED_COEF_MEDIUM,
+                                     clamp_hi=config.OUTPUT_CLAMP_RPM,
+                                     clamp_lo=-config.OUTPUT_CLAMP_RPM)
                 elif state.speed_mode == "HIGH":
                     pid.update_gains(config.KP, config.TD, config.N,
                                      config.V_RED_COEF,

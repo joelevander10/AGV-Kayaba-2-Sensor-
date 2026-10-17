@@ -356,7 +356,7 @@
     <button class="cal-btn start" id="at-start">START</button>
     <button class="cal-btn stop" id="at-stop">STOP</button>
   </div>
-  <div class="at-note">The AGV accelerates to the mode's speed on its current gains, then weaves gently around the tape for up to 10 s (relay test), brakes, and fits a model of how it steers. Suggested KP / TD / N are shown below — press APPLY on one, then test a normal run. Needs about (speed × time limit) metres of straight tape. RFID tags are ignored during the test. RESET or STOP aborts. MEDIUM and SLOW share the SLOW gains.</div>
+  <div class="at-note">The AGV accelerates to the mode's speed on its current gains, then weaves gently around the tape for up to 10 s (relay test), brakes, and fits a model of how it steers. Suggested KP / TD / N are shown below — press APPLY on one, then test a normal run. Needs about (speed × time limit) metres of straight tape. RFID tags are ignored during the test. RESET or STOP aborts. Each speed mode tunes its own gain set.</div>
   <div id="at-msg">—</div>
   <div id="at-result"></div>
 </div>
@@ -546,6 +546,9 @@ const TUNE_LAYOUT = [
   ]],
   ['PID GAINS — MAX', [
     ['KP_MAX', 'KP'], ['TD_MAX', 'TD'], ['N_MAX', 'N'], ['V_RED_COEF_MAX', 'V-Red'],
+  ]],
+  ['PID GAINS — MEDIUM', [
+    ['KP_MEDIUM', 'KP'], ['TD_MEDIUM', 'TD'], ['N_MEDIUM', 'N'], ['V_RED_COEF_MEDIUM', 'V-Red'],
   ]],
   ['PID GAINS — SLOW', [
     ['KP_SLOW', 'KP'], ['TD_SLOW', 'TD'], ['N_SLOW', 'N'],

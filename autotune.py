@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 MODE_INFO = {
     "MAX":    ("AUTO_TARGET_MAX_SPEED",    ("KP_MAX",  "TD_MAX",  "N_MAX",  "V_RED_COEF_MAX")),
     "HIGH":   ("AUTO_TARGET_HIGH_SPEED",   ("KP",      "TD",      "N",      "V_RED_COEF")),
-    "MEDIUM": ("AUTO_TARGET_MEDIUM_SPEED", ("KP_SLOW", "TD_SLOW", "N_SLOW", "V_RED_COEF_SLOW")),
+    "MEDIUM": ("AUTO_TARGET_MEDIUM_SPEED", ("KP_MEDIUM", "TD_MEDIUM", "N_MEDIUM", "V_RED_COEF_MEDIUM")),
     "SLOW":   ("AUTO_TARGET_SLOW_SPEED",   ("KP_SLOW", "TD_SLOW", "N_SLOW", "V_RED_COEF_SLOW")),
 }
 
@@ -67,7 +67,8 @@ def new_status():
 
 
 def fit_model(ts, us, pvs):
-    """Least-squares fit of pv = Kg·∬u(t−T) + Kg·τL·∫u(t−T) + y0 + v0·t.
+    """Least-squares fit of pv = Kg·∬u(t−T) + Kg·τL·∫u(t−T) + y0 + v0·t + c·t²
+    (the t² term absorbs a constant side-pull, e.g. a caster or trolley bias).
     Returns dict(kg, tau_l, lag, r2) for the best delay T."""
     import numpy as np
     t = np.asarray(ts) - ts[0]
@@ -80,7 +81,7 @@ def fit_model(ts, us, pvs):
         ud = np.interp(tu - lag, tu, u, left=u[0])
         i1 = np.cumsum(ud) * dt
         i2 = np.cumsum(i1) * dt
-        A = np.column_stack([i2, i1, np.ones_like(tu), tu])
+        A = np.column_stack([i2, i1, np.ones_like(tu), tu, tu * tu])
         coef, *_ = np.linalg.lstsq(A, pv, rcond=None)
         res = pv - A @ coef
         sse = float(res @ res)
@@ -170,6 +171,9 @@ async def autotune_mode(state):
     relay_u, relay_t0 = 0.0, None
     last_cross, prev_e = None, None
     sig_prev_e, sig_prev_t, de_f = None, None, 0.0
+    warm_out = []              # PID output while running straight (side-pull bias)
+    u_bias = 0.0
+    switches = 0
     cyc_max, cyc_min = -1e9, 1e9
     periods, amps = [], []
     ts, us, pvs = [], [], []
@@ -179,6 +183,12 @@ async def autotune_mode(state):
         logger.warning("[AUTOTUNE] %s — %s", phase.upper(), message)
 
     def finish_with_fit(reason):
+        if relay_t0 is not None and switches < 3:
+            finish("failed", f"{reason} — the relay never steered the AGV back to the tape "
+                             f"(±{d:.0f} rpm is too weak against the side-pull at this speed, "
+                             "or the tape is not straight). Increase Relay (rpm), e.g. "
+                             f"{min(400, int(d * 2.5))}, and use a straight section.")
+            return
         if relay_t0 is None or ts[-1] - ts[0] < MIN_RELAY_S:
             finish("failed", f"{reason} — not enough relay data (needs {MIN_RELAY_S:.0f} s). "
                              "Use a longer straight tape, a smaller relay or a longer time limit.")
@@ -236,22 +246,31 @@ async def autotune_mode(state):
                 out, pterm, iterm, dterm = dbg["output"], dbg["p"], dbg["i"], dbg["d"]
                 if cmd_speed >= target_speed and abs(e) < max(10.0, 3 * h):
                     straight_since = straight_since or now
+                    warm_out.append(out)
                     if now - straight_since >= 1.0:
+                        # Steering the AGV needed to run straight = constant
+                        # side-pull; the relay swings ±d around it.
+                        u_bias = sum(warm_out) / len(warm_out)
                         st["phase"] = "relay"; st["message"] = "Relay test running"
-                        relay_t0 = now; relay_u = d if e > 0 else -d
-                        logger.info("[AUTOTUNE] relay phase started")
+                        relay_t0 = now; relay_u = u_bias + (d if e > 0 else -d)
+                        logger.info("[AUTOTUNE] relay phase started (bias %+.1f rpm)", u_bias)
                 else:
                     straight_since = None
+                    warm_out.clear()
             else:
                 # switching signal with a little lead (filtered derivative)
                 if sig_prev_e is not None and now > sig_prev_t:
                     de_f += 0.2 * ((e - sig_prev_e) / (now - sig_prev_t) - de_f)
                 sig_prev_e, sig_prev_t = e, now
                 sigma = e + LEAD_S * de_f
+                new_u = relay_u
                 if sigma > h:
-                    relay_u = d
+                    new_u = u_bias + d
                 elif sigma < -h:
-                    relay_u = -d
+                    new_u = u_bias - d
+                if new_u != relay_u:
+                    switches += 1
+                relay_u = new_u
                 left, right = base + relay_u, base - relay_u
                 out, pterm, iterm, dterm = relay_u, None, None, None
                 ts.append(now); us.append(relay_u); pvs.append(e)
