@@ -193,6 +193,9 @@ class AMRState:
         # "right" at the start of every reverse. Separate from track_follow so
         # the forward fork choice is untouched.
         self.reverse_track = "right"
+        # DI10 stop marker is only obeyed after RFID BA was read in this
+        # reverse ("arm_reverse_marker" action). Reset at every reverse start.
+        self.reverse_marker_armed = False
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
         self.lidar_zone = None

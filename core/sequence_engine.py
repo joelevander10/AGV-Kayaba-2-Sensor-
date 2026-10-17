@@ -88,6 +88,7 @@ class SequenceEngine:
             "wait_pusher_bottom": self._act_wait_pusher_bottom,
             "set_reverse_speed": self._act_set_reverse_speed,
             "set_reverse_track": self._act_set_reverse_track,
+            "arm_reverse_marker": self._act_arm_reverse_marker,
             "set_lidar_area":    self._act_set_lidar_area,
         }
 
@@ -496,6 +497,12 @@ class SequenceEngine:
             return
         self._state.reverse_speed_override = speed
         logger.info("[SEQ] Reverse speed → %.2f m/s", speed)
+
+    async def _act_arm_reverse_marker(self, p: dict):
+        """Allow the DI10 reverse stop marker from now on (RFID BA while
+        REVERSING). Before this the marker is ignored; reset at every reverse."""
+        self._state.reverse_marker_armed = True
+        logger.info("[SEQ] Reverse stop marker ARMED")
 
     async def _act_set_reverse_track(self, p: dict):
         """REVERSE fork selection: which rear-sensor track reverse_mode

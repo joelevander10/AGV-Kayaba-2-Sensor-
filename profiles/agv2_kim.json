@@ -38,7 +38,7 @@
     "DI_PUSHER_PROX_BOTTOM": 15,
     "_comment_call_start": "DI8 = CALL START. Rising edge starts AUTO, tapi HANYA kalau AGV lagi di homepost (DO_AT_HOME nyala) dan mode ARMED. Run yang di-start dari DI4 akan berhenti di RFID B0 (sequence stop_at_b0). -1 = tidak dipakai.",
     "DI_CALL_START": 8,
-    "_comment_reverse_marker": "DI10 = marker stop presisi, HANYA dibaca saat REVERSING (rising edge). Menjalankan sequence stop_at_c1 yang sama dengan RFID CC — mana yang duluan (marker atau CC) yang dipakai. -1 = tidak dipakai.",
+    "_comment_reverse_marker": "DI10 = marker stop presisi, HANYA dibaca saat REVERSING (rising edge) dan HANYA setelah tag BA terbaca di mundur ini. Menjalankan sequence stop_at_c1 yang sama dengan RFID CC — mana yang duluan (marker atau CC) yang dipakai. -1 = tidak dipakai.",
     "DI_REVERSE_MARKER": 10
   },
   "motor_channels": {
@@ -481,6 +481,22 @@
       ],
       "cooldown_s": 3.0,
       "requires_mode": "running"
+    },
+    {
+      "_comment": "Tag BA saat REVERSING — mengaktifkan marker stop DI10. Sebelum BA terbaca, marker DI10 DIABAIKAN saat mundur (tag CC tetap berhenti seperti biasa). Di-reset setiap mulai mundur. Tag placeholder: ganti 00BA dengan hex tag sebenarnya.",
+      "name": "arm_reverse_marker_ba",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00BA"
+      },
+      "actions": [
+        {
+          "type": "arm_reverse_marker"
+        }
+      ],
+      "cooldown_s": 3.0,
+      "requires_mode": "reversing"
     },
     {
       "_comment": "RFID CA — mendekati marker stop saat REVERSING: kecepatan mundur turun ke 0.1 m/s supaya berhenti presisi di marker DI10 / RFID CC. Tag placeholder: ganti 00CA dengan hex tag sebenarnya.",

@@ -473,6 +473,7 @@ async def reverse_mode(state, engine=None):
     marker_prev = _marker_on()
     state.reverse_speed_override = None   # CA sets it again on this run
     state.reverse_track = "right"          # AE / BB switch it during this run
+    state.reverse_marker_armed = False     # tag BA arms the DI10 stop marker
     held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
     held_remain = 0.0     # timeout budget left when the hold started
 
@@ -498,8 +499,11 @@ async def reverse_mode(state, engine=None):
             # ── Reverse stop marker (rising edge) ─────────────────────────────
             marker_now = _marker_on()
             if marker_now and not marker_prev and engine is not None:
-                logger.info("[REVERSE] Stop marker DI%d detected", _mk)
-                await engine.on_reverse_marker()
+                if state.reverse_marker_armed:
+                    logger.info("[REVERSE] Stop marker DI%d detected", _mk)
+                    await engine.on_reverse_marker()
+                else:
+                    logger.info("[REVERSE] Stop marker DI%d ignored — tag BA not read yet", _mk)
             marker_prev = marker_now
 
             # ── Sequence stop — hold in place, still in REVERSE mode ──────────
@@ -810,6 +814,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.leaving_home        = False
         state.reverse_speed_override = None
         state.reverse_track       = "right"
+        state.reverse_marker_armed = False
         state.alarm_active        = False   # RESET / emergency / mode change silences the alarm horn
         state.lidar_area          = list(config.LIDAR_DEFAULT_AREA)
         state.web_reverse_start   = False
