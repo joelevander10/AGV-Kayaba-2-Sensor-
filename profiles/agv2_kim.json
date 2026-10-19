@@ -481,6 +481,32 @@
         "rfid_tag": "0001"
       },
       "skip_if_flag": "ignore_rfid_1",
+      "skip_if_branch": "2",
+      "actions": [
+        {
+          "type": "stop_agv"
+        },
+        {
+          "type": "wait_seconds",
+          "duration": 2.0
+        },
+        {
+          "type": "start_reverse"
+        }
+      ],
+      "cooldown_s": 3.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Khusus CABANG 2: tag \"2\" menggantikan tag \"1\" untuk mulai mundur — berhenti, jeda 2 detik, mundur (PID reverse-follow). Diabaikan kalau bukan cabang 2. Digating oleh ignore_rfid_2 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0002 dengan hex tag sebenarnya.",
+      "name": "reverse_at_2_branch2",
+      "category": "sequence",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0002"
+      },
+      "requires_branch": "2",
+      "skip_if_flag": "ignore_rfid_2",
       "actions": [
         {
           "type": "stop_agv"
@@ -546,6 +572,9 @@
           "type": "set_ignore_1"
         },
         {
+          "type": "set_ignore_2"
+        },
+        {
           "type": "wait_trolley_caught",
           "alarm_after_s": 10.0
         },
@@ -571,7 +600,7 @@
       "requires_mode": "reversing"
     },
     {
-      "_comment": "Tag CE — melepas ignore_rfid_1 (re-arm tag \"1\"). Posisinya di antara BB (merge ke main line) dan tag \"1\" di siding — kelewatin baik pas RUNNING (masuk siding) maupun REVERSING (keluar dari C1). Sengaja TANPA requires_mode biar kena di kedua kondisi. Tag placeholder: ganti 00CE dengan hex tag sebenarnya.",
+      "_comment": "Tag CE — melepas ignore_rfid_1 dan ignore_rfid_2 (re-arm tag \"1\" dan \"2\"). Posisinya di antara BB (merge ke main line) dan tag \"1\" di siding — kelewatin baik pas RUNNING (masuk siding) maupun REVERSING (keluar dari C1). Sengaja TANPA requires_mode biar kena di kedua kondisi. Tag placeholder: ganti 00CE dengan hex tag sebenarnya.",
       "name": "clear_ignore_at_cr",
       "category": "navigation",
       "trigger": {
@@ -581,6 +610,9 @@
       "actions": [
         {
           "type": "clear_ignore_1"
+        },
+        {
+          "type": "clear_ignore_2"
         }
       ],
       "cooldown_s": 3.0

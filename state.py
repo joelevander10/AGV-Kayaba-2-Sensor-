@@ -55,6 +55,9 @@ class KinematicState:
         # ("clear_ignore_1") — NOT reset on mode transitions, same persistence
         # model as active_branch.
         self.ignore_rfid_1        = False
+        # Same for tag "2" (branch 2's reverse tag): set at the C1 / marker
+        # stop ("set_ignore_2"), cleared at CE ("clear_ignore_2").
+        self.ignore_rfid_2        = False
         # Homepost request. Set True by SequenceEngine's "go_home" action
         # (RFID tag "0") to command mode_manager to fully exit AUTO — cancels
         # the running task, idles the motors, and drops back to ARMED (same
@@ -340,6 +343,11 @@ class AMRState:
     def ignore_rfid_1(self): return self.kinematic.ignore_rfid_1
     @ignore_rfid_1.setter
     def ignore_rfid_1(self, v): self.kinematic.ignore_rfid_1 = v
+
+    @property
+    def ignore_rfid_2(self): return self.kinematic.ignore_rfid_2
+    @ignore_rfid_2.setter
+    def ignore_rfid_2(self, v): self.kinematic.ignore_rfid_2 = v
 
     @property
     def homepost_request(self): return self.kinematic.homepost_request

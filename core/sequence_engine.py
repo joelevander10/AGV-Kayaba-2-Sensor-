@@ -79,6 +79,8 @@ class SequenceEngine:
             "stop_reverse":      self._act_stop_reverse,
             "set_ignore_1":      self._act_set_ignore_1,
             "clear_ignore_1":    self._act_clear_ignore_1,
+            "set_ignore_2":      self._act_set_ignore_2,
+            "clear_ignore_2":    self._act_clear_ignore_2,
             "go_home":           self._act_go_home,
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
@@ -447,6 +449,14 @@ class SequenceEngine:
     async def _act_clear_ignore_1(self, p: dict):
         self._state.ignore_rfid_1 = False
         logger.info("[SEQ] ignore_rfid_1 CLEARED — tag '1' re-armed")
+
+    async def _act_set_ignore_2(self, p: dict):
+        self._state.ignore_rfid_2 = True
+        logger.info("[SEQ] ignore_rfid_2 SET — tag '2' will be ignored until CE")
+
+    async def _act_clear_ignore_2(self, p: dict):
+        self._state.ignore_rfid_2 = False
+        logger.info("[SEQ] ignore_rfid_2 CLEARED — tag '2' re-armed")
 
     async def _act_go_home(self, p: dict):
         # One-shot: raises the flag, mode_manager does the actual mode exit
