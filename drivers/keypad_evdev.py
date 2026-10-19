@@ -36,7 +36,7 @@ REFRESH_S = 0.1
 def _code_map():
     """evdev key code -> our key name (top-row digits AND numpad digits)."""
     m = {}
-    for letter in "wasdzxrqety":
+    for letter in "wasdzxrqetykl":
         m[getattr(ecodes, f"KEY_{letter.upper()}")] = letter
     for d in "0123456789":
         m[getattr(ecodes, f"KEY_{d}")] = d

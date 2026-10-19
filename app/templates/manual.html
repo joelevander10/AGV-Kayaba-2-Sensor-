@@ -721,6 +721,7 @@
       <b>Q</b> switch MANUAL / AUTO<br>
       <b>7 8 9 0</b> start branch 1-4<br>
       <b>T / Y</b> rotate 180° left / right<br>
+      <b>K / L</b> track left / right (fwd or rev)<br>
       <b>E</b> EMERGENCY STOP<br>
       <b>ENTER</b> RESET
     </div>
@@ -784,7 +785,7 @@
   const _keysDown = new Set();               // 'up' | 'down' | 'left' | 'right'
   const _dirOf = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
   const _wasd  = { w: 'up', s: 'down', a: 'left', d: 'right' };
-  const _actionKeys = new Set(['1','2','3','4','5','7','8','9','0','z','x','r','q','e','t','y','enter']);
+  const _actionKeys = new Set(['1','2','3','4','5','7','8','9','0','z','x','r','q','e','t','y','k','l','enter']);
   const kbToggle = document.getElementById('kb-toggle');
   const kbMsg    = document.getElementById('kb-msg');
   let kbEnabled  = false;

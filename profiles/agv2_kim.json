@@ -363,6 +363,22 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "Tag B2 — KHUSUS cabang 2: setelah tag ini, tag AE DIABAIKAN (maju maupun mundur). Aktif lagi saat sampai homepost (RFID 0). Tanpa requires_mode (kena saat RUNNING maupun REVERSING). Tag placeholder: ganti 00B2 dengan hex tag sebenarnya.",
+      "name": "branch2_ignore_ae_b2",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00B2"
+      },
+      "requires_branch": "2",
+      "actions": [
+        {
+          "type": "set_ignore_ae"
+        }
+      ],
+      "cooldown_s": 3.0
+    },
+    {
       "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track left (sama seperti TITIK 1).",
       "name": "branch_titik_3",
       "category": "navigation",
@@ -411,6 +427,7 @@
         "type": "rfid",
         "rfid_tag": "00AE"
       },
+      "skip_if_flag": "ignore_rfid_ae",
       "actions": [
         {
           "type": "set_track",
@@ -445,6 +462,7 @@
         "type": "rfid",
         "rfid_tag": "00AE"
       },
+      "skip_if_flag": "ignore_rfid_ae",
       "actions": [
         {
           "type": "set_reverse_track",
@@ -684,6 +702,9 @@
         },
         {
           "type": "clear_branch"
+        },
+        {
+          "type": "clear_ignore_ae"
         },
         {
           "type": "go_home"

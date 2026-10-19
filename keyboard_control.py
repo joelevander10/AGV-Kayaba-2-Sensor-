@@ -15,6 +15,8 @@ Actions (one press)
     R AUTO REVERSE start (ARMED) / stop (REVERSING)
     Q switch MANUAL <-> AUTO (overrides the selector until it is moved)
     7 / 8 / 9 / 0  start AUTO to branch 1 / 2 / 3 / 4  (ARMED; else just selects)
+    K / L select track LEFT / RIGHT by hand: forward track (ARMED/RUNNING)
+          or reverse track (REVERSING). A later RFID track tag can change it.
     T / Y rotate 180° on the tape LEFT (CCW) / RIGHT (CW)   (MANUAL/ARMED;
           press T or Y again during the turn to stop it)
     E EMERGENCY STOP — latched, released only by RESET
@@ -32,7 +34,9 @@ MOVE_KEYS = {"w", "a", "s", "d"}
 SPEED_KEYS = {"1": "APPROACH", "2": "SLOW", "3": "MEDIUM", "4": "HIGH", "5": "MAX"}
 BRANCH_KEYS = {"7": "1", "8": "2", "9": "3", "0": "4"}
 ROTATE_KEYS = {"t": "left", "y": "right"}
-ACTION_KEYS = set(SPEED_KEYS) | set(BRANCH_KEYS) | set(ROTATE_KEYS) | {"z", "x", "r", "q", "e", "enter"}
+TRACK_KEYS = {"k": "left", "l": "right"}
+ACTION_KEYS = (set(SPEED_KEYS) | set(BRANCH_KEYS) | set(ROTATE_KEYS) | set(TRACK_KEYS)
+               | {"z", "x", "r", "q", "e", "enter"})
 MOVE_WATCHDOG_S = 0.4      # same 400 ms watchdog as the web jog buttons
 
 
@@ -139,6 +143,18 @@ def handle_key(state, key, source="keyboard"):
 
     if key in ROTATE_KEYS:
         return request_rotate(state, ROTATE_KEYS[key], source)
+
+    if key in TRACK_KEYS:
+        side = TRACK_KEYS[key]
+        if mode == "reversing":
+            state.reverse_track = side       # read every cycle by reverse_mode
+            logger.info("[%s] %s — reverse track %s (manual)", source, key.upper(), side.upper())
+            return True, f"reverse track {side.upper()}"
+        if mode in ("armed", "running"):
+            state.track_follow = side        # read every cycle by auto_mode
+            logger.info("[%s] %s — forward track %s (manual)", source, key.upper(), side.upper())
+            return True, f"forward track {side.upper()}"
+        return False, f"track keys work in ARMED/RUNNING/REVERSING (now {mode})"
 
     if key in BRANCH_KEYS:
         branch = BRANCH_KEYS[key]

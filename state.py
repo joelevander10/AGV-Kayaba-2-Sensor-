@@ -211,6 +211,9 @@ class AMRState:
         # (start_reverse "track", e.g. tag 3 → "left"); beats the per-branch
         # track and AE / BB. None = normal rules.
         self.reverse_track_fixed = None
+        # Tag AE ignored (forward fork and reverse) after RFID B2 in branch 2
+        # ("set_ignore_ae"); re-armed at homepost RFID 0 ("clear_ignore_ae").
+        self.ignore_rfid_ae = False
         self.rotate_status  = {"phase": "idle", "message": "", "angle": 0}
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
