@@ -621,7 +621,7 @@
         },
         {
           "type": "resume",
-          "speed": "SLOW"
+          "speed": "EXTRA_SLOW"
         }
       ],
       "cooldown_s": 5.0,

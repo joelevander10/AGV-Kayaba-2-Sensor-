@@ -138,6 +138,9 @@ AUTO_TARGET_MEDIUM_SPEED     = _params["speeds"].get("AUTO_TARGET_MEDIUM_SPEED",
 AUTO_TARGET_MAX_SPEED        = _params["speeds"].get("AUTO_TARGET_MAX_SPEED", AUTO_TARGET_HIGH_SPEED)
 AUTO_TARGET_SLOW_SPEED       = _params["speeds"]["AUTO_TARGET_SLOW_SPEED"]
 AUTO_TARGET_APPROACH_SPEED   = _params["speeds"].get("AUTO_TARGET_APPROACH_SPEED", 0.1)
+# EXTRA_SLOW speed mode — used when driving forward again after a reverse
+# (stop_at_c1 "resume" EXTRA_SLOW). Same PID gains as SLOW.
+AUTO_TARGET_EXTRA_SLOW_SPEED = _params["speeds"].get("AUTO_TARGET_EXTRA_SLOW_SPEED", 0.15)
 ACCEL_RATE                   = _params["speeds"]["ACCEL_RATE"]
 DECEL_RATE                   = _params["speeds"]["DECEL_RATE"]
 APPROACH_DECEL_RATE          = _params["speeds"]["APPROACH_DECEL_RATE"]
@@ -491,6 +494,7 @@ def _validate():
         ("AUTO_TARGET_MEDIUM_SPEED", AUTO_TARGET_MEDIUM_SPEED),
         ("AUTO_TARGET_SLOW_SPEED",   AUTO_TARGET_SLOW_SPEED),
         ("AUTO_TARGET_APPROACH_SPEED",   AUTO_TARGET_APPROACH_SPEED),
+        ("AUTO_TARGET_EXTRA_SLOW_SPEED", AUTO_TARGET_EXTRA_SLOW_SPEED),
         ("AUTO_TARGET_REVERSE_SPEED",    AUTO_TARGET_REVERSE_SPEED),
     ]:
         check(0 <= val <= _MAX_SPEED_MPS,
@@ -610,6 +614,7 @@ TUNABLE_SPECS = {   # key: (min, max)
     "AUTO_TARGET_MEDIUM_SPEED":       (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_SLOW_SPEED":         (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_APPROACH_SPEED":     (0.0,   _MAX_SPEED_MPS),
+    "AUTO_TARGET_EXTRA_SLOW_SPEED":   (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_REVERSE_SPEED":      (0.0,   _MAX_SPEED_MPS),
     "ACCEL_RATE":                     (0.01,  10.0),
     "DECEL_RATE":                     (0.01,  10.0),

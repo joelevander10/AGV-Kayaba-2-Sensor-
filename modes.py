@@ -165,6 +165,9 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_APPROACH_SPEED
             elif state.speed_mode == "SLOW":
                 target_speed = config.AUTO_TARGET_SLOW_SPEED
+            elif state.speed_mode == "EXTRA_SLOW":
+                # After a reverse (stop_at_c1 resume) — SLOW gains (else-branch below).
+                target_speed = config.AUTO_TARGET_EXTRA_SLOW_SPEED
             elif state.speed_mode == "MAX":
                 target_speed = config.AUTO_TARGET_MAX_SPEED
             elif state.speed_mode == "MEDIUM":

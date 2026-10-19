@@ -635,6 +635,7 @@ def api_params():
             "Auto Medium (m/s)":          config.AUTO_TARGET_MEDIUM_SPEED,
             "Auto Slow (m/s)":            config.AUTO_TARGET_SLOW_SPEED,
             "Auto Approach (m/s)":        config.AUTO_TARGET_APPROACH_SPEED,
+            "Auto Extra Slow (m/s)":      config.AUTO_TARGET_EXTRA_SLOW_SPEED,
             "Accel Rate (m/s²)":          config.ACCEL_RATE,
             "Decel Rate (m/s²)":          config.DECEL_RATE,
             "Approach Decel Rate (m/s²)": config.APPROACH_DECEL_RATE,
