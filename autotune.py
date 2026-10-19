@@ -172,6 +172,7 @@ async def autotune_mode(state):
 
     t0 = time.time()
     cmd_speed, last_pv, straight_since = 0.0, None, None
+    ramp_t = None                      # last ramp step (perf_counter)
     relay_u, relay_t0 = 0.0, None
     last_cross, prev_e = None, None
     sig_prev_e, sig_prev_t, de_f = None, None, 0.0
@@ -241,8 +242,11 @@ async def autotune_mode(state):
                     finish("aborted", f"Error {e:+.0f} mm above the {err_limit:.0f} mm limit during warm-up")
                 break
 
-            if cmd_speed < target_speed:
-                cmd_speed = min(target_speed, cmd_speed + config.ACCEL_RATE * config.DT)
+            _now = time.perf_counter()
+            _rdt = config.DT if ramp_t is None else min(max(_now - ramp_t, 0.0), 0.2)
+            ramp_t = _now
+            if cmd_speed < target_speed:          # real-time ramp (frames arrive ~10 Hz)
+                cmd_speed = min(target_speed, cmd_speed + config.ACCEL_RATE * _rdt)
             base = motion.mps_to_rpm(cmd_speed)
 
             if st["phase"] == "warmup":

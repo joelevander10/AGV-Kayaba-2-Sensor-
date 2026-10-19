@@ -14,6 +14,16 @@ from debugging.plotter import RunRecorder
 logger = logging.getLogger(__name__)
 
 
+def _ramp_dt(last_t):
+    """Real time since the previous speed-ramp step (s), clamped to 0.2 s.
+    The control loop only runs when a sensor frame arrives (~10 Hz from the
+    MGS1600, not every DT = 10 ms), so stepping the ramp by a fixed DT made
+    every accel / decel ~10x slower than the rate set in the profile."""
+    now = time.perf_counter()
+    if last_t is None:
+        return now, config.DT
+    return now, min(max(now - last_t, 0.0), 0.2)
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  AUTO MODE  (forward tape-following only)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -75,6 +85,7 @@ async def auto_mode(state, engine=None):
     )
 
     current_target_speed = 0.0
+    ramp_t               = None   # last speed-ramp step (perf_counter), see _ramp_dt
     tape_was_lost        = False
     was_sequence_stopped = False
     last_speed_mode      = None   # tracks when gain set must change
@@ -245,8 +256,10 @@ async def auto_mode(state, engine=None):
                         await engine.on_marker("right")
 
                 # ── Acceleration / deceleration ramp ──────────────────────────
+                # Stepped by the REAL time between frames (see _ramp_dt).
+                ramp_t, rdt = _ramp_dt(ramp_t)
                 if current_target_speed < target_speed:
-                    current_target_speed += config.ACCEL_RATE * config.DT
+                    current_target_speed += config.ACCEL_RATE * rdt
                     if current_target_speed > target_speed:
                         current_target_speed = target_speed
                 elif current_target_speed > target_speed:
@@ -258,7 +271,7 @@ async def auto_mode(state, engine=None):
                                   else config.DECEL_RATE)
                     if lidar_cap is not None and target_speed == lidar_cap:
                         decel_rate = config.LIDAR_DECEL_RATE
-                    current_target_speed -= decel_rate * config.DT
+                    current_target_speed -= decel_rate * rdt
                     if current_target_speed < target_speed:
                         current_target_speed = target_speed
 
@@ -469,6 +482,7 @@ async def reverse_mode(state, engine=None):
     )
 
     current_target_speed = 0.0
+    ramp_t               = None   # last speed-ramp step (perf_counter), see _ramp_dt
     tape_was_lost         = False
     last_valid_pv          = None
     deadline    = time.perf_counter() + config.REVERSE_TIMEOUT_S
@@ -588,12 +602,13 @@ async def reverse_mode(state, engine=None):
                     await motion.set_reverse(state, 0.0)
                     tape_was_lost = False
 
+                ramp_t, rdt = _ramp_dt(ramp_t)
                 if current_target_speed < target_speed:
-                    current_target_speed += config.ACCEL_RATE * config.DT
+                    current_target_speed += config.ACCEL_RATE * rdt
                     if current_target_speed > target_speed:
                         current_target_speed = target_speed
                 elif current_target_speed > target_speed:
-                    current_target_speed -= config.DECEL_RATE * config.DT
+                    current_target_speed -= config.DECEL_RATE * rdt
                     if current_target_speed < target_speed:
                         current_target_speed = target_speed
 
