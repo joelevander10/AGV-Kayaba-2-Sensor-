@@ -194,6 +194,15 @@ TD_MEDIUM         = _params["pid_tuning"].get("TD_MEDIUM",         _params["pid_
 N_MEDIUM          = _params["pid_tuning"].get("N_MEDIUM",          _params["pid_tuning"]["N_SLOW"])
 V_RED_COEF_MEDIUM = _params["pid_tuning"].get("V_RED_COEF_MEDIUM", _params["pid_tuning"]["V_RED_COEF_SLOW"])
 
+# PID gains — SLOW in the branches (RFID AA / AB / AC: set_speed with
+# "gains": "BRANCH"). Used only while speed is SLOW and that tag set it; the
+# next set_speed / resume goes back to the normal SLOW gains. Falls back to the
+# SLOW gains when a profile has no *_SLOW_BRANCH keys.
+KP_SLOW_BRANCH         = _params["pid_tuning"].get("KP_SLOW_BRANCH",         _params["pid_tuning"]["KP_SLOW"])
+TD_SLOW_BRANCH         = _params["pid_tuning"].get("TD_SLOW_BRANCH",         _params["pid_tuning"]["TD_SLOW"])
+N_SLOW_BRANCH          = _params["pid_tuning"].get("N_SLOW_BRANCH",          _params["pid_tuning"]["N_SLOW"])
+V_RED_COEF_SLOW_BRANCH = _params["pid_tuning"].get("V_RED_COEF_SLOW_BRANCH", _params["pid_tuning"]["V_RED_COEF_SLOW"])
+
 KP_APPROACH         = _params["pid_tuning"].get("KP_APPROACH",         1.6)
 TD_APPROACH         = _params["pid_tuning"].get("TD_APPROACH",         0.12)
 N_APPROACH          = _params["pid_tuning"].get("N_APPROACH",          12)
@@ -631,6 +640,11 @@ TUNABLE_SPECS = {   # key: (min, max)
     "TD_SLOW":                        (0.0,   5.0),
     "N_SLOW":                         (1.0,   100.0),
     "V_RED_COEF_SLOW":                (0.0,   50.0),
+    # PID gains — SLOW in the branches (AA / AB / AC)
+    "KP_SLOW_BRANCH":                 (0.0,   50.0),
+    "TD_SLOW_BRANCH":                 (0.0,   5.0),
+    "N_SLOW_BRANCH":                  (1.0,   100.0),
+    "V_RED_COEF_SLOW_BRANCH":         (0.0,   50.0),
     # PID gains — APPROACH
     "KP_APPROACH":                    (0.0,   50.0),
     "TD_APPROACH":                    (0.0,   5.0),

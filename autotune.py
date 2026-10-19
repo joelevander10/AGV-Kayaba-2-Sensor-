@@ -45,6 +45,10 @@ MODE_INFO = {
     "HIGH":   ("AUTO_TARGET_HIGH_SPEED",   ("KP",      "TD",      "N",      "V_RED_COEF")),
     "MEDIUM": ("AUTO_TARGET_MEDIUM_SPEED", ("KP_MEDIUM", "TD_MEDIUM", "N_MEDIUM", "V_RED_COEF_MEDIUM")),
     "SLOW":   ("AUTO_TARGET_SLOW_SPEED",   ("KP_SLOW", "TD_SLOW", "N_SLOW", "V_RED_COEF_SLOW")),
+    # SLOW speed, but proposes the branch gains (RFID AA / AB / AC). Run it on
+    # the branch tape / curve if possible — that is where these gains are used.
+    "SLOW_BRANCH": ("AUTO_TARGET_SLOW_SPEED", ("KP_SLOW_BRANCH", "TD_SLOW_BRANCH",
+                                               "N_SLOW_BRANCH", "V_RED_COEF_SLOW_BRANCH")),
 }
 
 DEFAULTS = {"relay_rpm": 20.0, "hyst_mm": 1.5, "err_limit_mm": 50.0,

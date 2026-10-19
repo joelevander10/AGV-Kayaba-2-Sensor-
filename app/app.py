@@ -230,7 +230,9 @@ def _build_state_snapshot():
         "v_right":        round(s.right_rpm / config.GEAR_RATIO * config.WHEEL_CIRCUMFERENCE / 60.0, 3),
         "pid_output":     round(s.pid_output, 1),
         "target_speed":   round(s.target_speed, 3),
-        "speed_mode":     s.speed_mode,
+        "speed_mode":     (s.speed_mode + " (BRANCH)"
+                           if s.speed_mode == "SLOW" and s.gain_set == "BRANCH"
+                           else s.speed_mode),
     }
 
     # ── Rear magnetic sensor (second MGS1600, REVERSE only) ───────────────────
@@ -647,6 +649,10 @@ def api_params():
             "KP (Medium)":                      config.KP_MEDIUM,
             "TD (Medium)":                      config.TD_MEDIUM,
             "N (Medium)":                       config.N_MEDIUM,
+            "KP (Slow branch AA/AB/AC)":        config.KP_SLOW_BRANCH,
+            "TD (Slow branch AA/AB/AC)":        config.TD_SLOW_BRANCH,
+            "N (Slow branch AA/AB/AC)":         config.N_SLOW_BRANCH,
+            "V Red Coef (Slow branch)":         config.V_RED_COEF_SLOW_BRANCH,
             "KP (Slow)":                        config.KP_SLOW,
             "TD (Slow)":                        config.TD_SLOW,
             "N (Slow)":                         config.N_SLOW,

@@ -105,6 +105,11 @@
     "KP_SLOW": 2.2,
     "TD_SLOW": 0.14,
     "N_SLOW": 12,
+    "_comment_slow_branch": "SLOW di cabang (RFID AA / AB / AC) — gain sendiri, terpisah dari SLOW biasa. Dipakai sampai set_speed / resume berikutnya.",
+    "KP_SLOW_BRANCH": 2.2,
+    "TD_SLOW_BRANCH": 0.14,
+    "N_SLOW_BRANCH": 12,
+    "V_RED_COEF_SLOW_BRANCH": 2,
     "_comment_shared": "Shared — integral and timing constants",
     "TI": 20,
     "TI_DEADBAND": 25,
@@ -306,7 +311,8 @@
       "actions": [
         {
           "type": "set_speed",
-          "speed": "SLOW"
+          "speed": "SLOW",
+          "gains": "BRANCH"
         },
         {
           "type": "set_track",
@@ -328,7 +334,8 @@
       "actions": [
         {
           "type": "set_speed",
-          "speed": "SLOW"
+          "speed": "SLOW",
+          "gains": "BRANCH"
         },
         {
           "type": "set_track",
@@ -368,7 +375,8 @@
       "actions": [
         {
           "type": "set_speed",
-          "speed": "SLOW"
+          "speed": "SLOW",
+          "gains": "BRANCH"
         },
         {
           "type": "set_track",

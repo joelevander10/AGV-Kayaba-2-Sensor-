@@ -171,8 +171,17 @@ async def auto_mode(state, engine=None):
 
             # Only switch gains when speed_mode actually changes — avoids
             # redundant recomputation of the derivative filter coefficient.
-            if state.speed_mode != last_speed_mode:
-                if state.speed_mode == "MAX":
+            # SLOW branch gains (AA / AB / AC) only while SLOW and that tag set them.
+            branch_gains = state.speed_mode == "SLOW" and state.gain_set == "BRANCH"
+            gain_key = (state.speed_mode, branch_gains)
+            if gain_key != last_speed_mode:
+                if branch_gains:
+                    pid.update_gains(config.KP_SLOW_BRANCH, config.TD_SLOW_BRANCH,
+                                     config.N_SLOW_BRANCH, config.V_RED_COEF_SLOW_BRANCH,
+                                     clamp_hi=config.OUTPUT_CLAMP_RPM,
+                                     clamp_lo=-config.OUTPUT_CLAMP_RPM)
+                    logger.info("[AUTO] PID gains → SLOW BRANCH")
+                elif state.speed_mode == "MAX":
                     pid.update_gains(config.KP_MAX, config.TD_MAX, config.N_MAX,
                                      config.V_RED_COEF_MAX,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,
@@ -200,7 +209,7 @@ async def auto_mode(state, engine=None):
                                      config.N_SLOW, config.V_RED_COEF_SLOW,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,
                                      clamp_lo=-config.OUTPUT_CLAMP_RPM)
-                last_speed_mode = state.speed_mode
+                last_speed_mode = gain_key
 
             # ── Drain sensor queue — keep only the latest frame ───────────────
             sensor = None
@@ -810,6 +819,7 @@ async def mode_manager(state, engine=None, manager=None):
 
     def _reset_sequence_state():
         state.speed_mode          = "SLOW"
+        state.gain_set            = None
         state.sequence_stop       = False
         state.nav_in_corner       = False
         # Default is "right" — the front sensor's left/right reporting is

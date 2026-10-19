@@ -199,6 +199,9 @@ class AMRState:
         # 180° spin-turn (rotate.py): "left" | "right" request from the T/Y keys
         # or the manual page, consumed by mode_manager; status for the HMI.
         self.rotate_request = None
+        # PID gain set override: "BRANCH" = SLOW branch gains (set by RFID
+        # AA / AB / AC via set_speed "gains"); None = normal gains for the speed.
+        self.gain_set = None
         self.rotate_status  = {"phase": "idle", "message": "", "angle": 0}
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).

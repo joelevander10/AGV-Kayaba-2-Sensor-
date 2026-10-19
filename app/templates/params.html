@@ -348,7 +348,7 @@
   <div class="section-title">PID AUTO-TUNE &nbsp;<span class="dep-note">(relay test · ARMED on a STRAIGHT tape · area clear)</span></div>
   <div class="at-row">
     <label>Speed mode
-      <select id="at-mode"><option>MAX</option><option selected>HIGH</option><option>MEDIUM</option><option>SLOW</option></select></label>
+      <select id="at-mode"><option>MAX</option><option selected>HIGH</option><option>MEDIUM</option><option>SLOW</option><option value="SLOW_BRANCH">SLOW BRANCH (AA/AB/AC)</option></select></label>
     <label>Relay (rpm)<input id="at-relay" type="number" value="20" min="5" max="400" step="5"></label>
     <label>Max error (mm)<input id="at-limit" type="number" value="50" min="10" max="90" step="5"></label>
     <label>Time limit (s)<input id="at-time" type="number" value="30" min="5" max="120" step="5"></label>
@@ -553,6 +553,10 @@ const TUNE_LAYOUT = [
   ['PID GAINS — SLOW', [
     ['KP_SLOW', 'KP'], ['TD_SLOW', 'TD'], ['N_SLOW', 'N'],
     ['V_RED_COEF_SLOW', 'V-Red'],
+  ]],
+  ['PID GAINS — SLOW BRANCH (AA / AB / AC)', [
+    ['KP_SLOW_BRANCH', 'KP'], ['TD_SLOW_BRANCH', 'TD'], ['N_SLOW_BRANCH', 'N'],
+    ['V_RED_COEF_SLOW_BRANCH', 'V-Red'],
   ]],
   ['PID GAINS — APPROACH', [
     ['KP_APPROACH', 'KP'], ['TD_APPROACH', 'TD'], ['N_APPROACH', 'N'],

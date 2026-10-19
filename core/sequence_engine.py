@@ -393,6 +393,10 @@ class SequenceEngine:
 
     async def _act_set_speed(self, p: dict):
         self._state.speed_mode = p["speed"]
+        # Optional "gains": "BRANCH" → SLOW branch gains (AA / AB / AC).
+        # Any set_speed without it returns to the normal gains.
+        gains = p.get("gains")
+        self._state.gain_set = str(gains).upper() if gains else None
         # Only a NAV sequence setting SLOW means "we are in a corner" — seq
         # approaches may also use SLOW but must not get curvature feedforward.
         if self._category(self._current_seq) == "navigation":
@@ -656,6 +660,8 @@ class SequenceEngine:
         speed = p.get("speed")
         if speed is not None:
             self._state.speed_mode = speed
+            gains = p.get("gains")
+            self._state.gain_set = str(gains).upper() if gains else None
         logger.info("[SEQ] Resuming — speed=%s", speed or "(unchanged)")
 
     async def _act_sequence_stop(self, p: dict):

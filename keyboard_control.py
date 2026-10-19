@@ -97,6 +97,7 @@ def handle_key(state, key, source="keyboard"):
         if mode not in ("armed", "running"):
             return False, f"speed keys work in ARMED/RUNNING (now {mode})"
         state.speed_mode = speed
+        state.gain_set = None
         logger.info("[%s] %s — AUTO speed mode %s", source, key, speed)
         return True, f"speed {speed}"
 
