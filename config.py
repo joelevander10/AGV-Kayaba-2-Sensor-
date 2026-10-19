@@ -389,6 +389,24 @@ LIDAR_RESUME_DELAY_S = float(_lidar.get("RESUME_DELAY_S", 2.0))
 LIDAR_DO_AREA        = list(_lidar.get("DO_AREA", [-1, -1]))
 LIDAR_DEFAULT_AREA   = [bool(v) for v in _lidar.get("DEFAULT_AREA", [False, False])]
 
+# ── 180° spin-turn on the tape (rotate.py) ──────────────────────────────────
+# Keys T (left/CCW) and Y (right/CW), or the ROTATE buttons on the manual page,
+# in MANUAL or ARMED. Spins at SPEED_MPS (wheel speed), creeps at CREEP_MPS once
+# the front sensor finds the tape again, brakes when |position| <= CENTER_TOL_MM.
+# MIN/MAX_ANGLE_DEG: estimated-angle window in which the tape is accepted /
+# after which the turn is aborted. BLOCK_WITH_TROLLEY: refuse while hooked.
+_rot = _params.get("rotate", {})
+ROTATE_ENABLED            = bool(_rot.get("ENABLED", True))
+ROTATE_SPEED_MPS          = float(_rot.get("SPEED_MPS", 0.10))
+ROTATE_CREEP_MPS          = float(_rot.get("CREEP_MPS", 0.04))
+ROTATE_ACCEL_MPS2         = float(_rot.get("ACCEL_MPS2", 0.2))
+ROTATE_CENTER_TOL_MM      = float(_rot.get("CENTER_TOL_MM", 5.0))
+ROTATE_MIN_ANGLE_DEG      = float(_rot.get("MIN_ANGLE_DEG", 100.0))
+ROTATE_MAX_ANGLE_DEG      = float(_rot.get("MAX_ANGLE_DEG", 260.0))
+ROTATE_TIMEOUT_S          = float(_rot.get("TIMEOUT_S", 40.0))
+ROTATE_SETTLE_S           = float(_rot.get("SETTLE_S", 0.5))
+ROTATE_BLOCK_WITH_TROLLEY = bool(_rot.get("BLOCK_WITH_TROLLEY", True))
+
 # ── USB keypad on the AGV PC (drivers/keypad_evdev.py) ───────────────────────
 # Keys: see keyboard_control.py. Any keyboard-type USB device is used unless
 # NAME_CONTAINS is set (then only devices whose name contains that text).
@@ -480,6 +498,9 @@ def _validate():
           "lidar DO_AREA and DEFAULT_AREA must each have 2 entries")
     for idx in LIDAR_DO_AREA:
         check(-1 <= idx < NUM_DO, f"lidar DO_AREA channel must be -1 or in [0, {NUM_DO}) (got {idx})")
+    check(ROTATE_SPEED_MPS > 0 and ROTATE_CREEP_MPS > 0, "rotate SPEED_MPS / CREEP_MPS must be > 0")
+    check(ROTATE_ACCEL_MPS2 > 0, "rotate ACCEL_MPS2 must be > 0")
+    check(ROTATE_MIN_ANGLE_DEG < ROTATE_MAX_ANGLE_DEG, "rotate MIN_ANGLE_DEG must be < MAX_ANGLE_DEG")
     if DI_PUSHER_BUTTON >= 0:
         check(DI_PUSHER_BUTTON < NUM_DI, f"DI_PUSHER_BUTTON must be in [0, {NUM_DI}) (got {DI_PUSHER_BUTTON})")
     if DI_REVERSE_MARKER >= 0:
@@ -616,6 +637,13 @@ TUNABLE_SPECS = {   # key: (min, max)
     "FF_SCALE":                       (0.0,   5.0),
     "FF_ALPHA":                       (0.001, 1.0),
     "FF_EXIT_ALPHA":                  (0.001, 1.0),
+    # 180° spin-turn (rotate.py)
+    "ROTATE_SPEED_MPS":               (0.01,  0.5),
+    "ROTATE_CREEP_MPS":               (0.01,  0.3),
+    "ROTATE_ACCEL_MPS2":              (0.01,  2.0),
+    "ROTATE_CENTER_TOL_MM":           (0.5,   40.0),
+    "ROTATE_MIN_ANGLE_DEG":           (30.0,  175.0),
+    "ROTATE_MAX_ANGLE_DEG":           (185.0, 360.0),
 }
 
 # Snapshot for "reset to profile". Captured after _validate(), so it reflects the

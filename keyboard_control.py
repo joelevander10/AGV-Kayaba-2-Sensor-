@@ -15,6 +15,8 @@ Actions (one press)
     R AUTO REVERSE start (ARMED) / stop (REVERSING)
     Q switch MANUAL <-> AUTO (overrides the selector until it is moved)
     7 / 8 / 9 / 0  start AUTO to branch 1 / 2 / 3 / 4  (ARMED; else just selects)
+    T / Y rotate 180° on the tape LEFT (CCW) / RIGHT (CW)   (MANUAL/ARMED;
+          press T or Y again during the turn to stop it)
     E EMERGENCY STOP — latched, released only by RESET
     ENTER RESET (same as the RESET button DI1: releases E-stop / emergency,
           aborts AUTO / REVERSE back to ARMED)
@@ -29,7 +31,8 @@ logger = logging.getLogger(__name__)
 MOVE_KEYS = {"w", "a", "s", "d"}
 SPEED_KEYS = {"1": "APPROACH", "2": "SLOW", "3": "MEDIUM", "4": "HIGH", "5": "MAX"}
 BRANCH_KEYS = {"7": "1", "8": "2", "9": "3", "0": "4"}
-ACTION_KEYS = set(SPEED_KEYS) | set(BRANCH_KEYS) | {"z", "x", "r", "q", "e", "enter"}
+ROTATE_KEYS = {"t": "left", "y": "right"}
+ACTION_KEYS = set(SPEED_KEYS) | set(BRANCH_KEYS) | set(ROTATE_KEYS) | {"z", "x", "r", "q", "e", "enter"}
 MOVE_WATCHDOG_S = 0.4      # same 400 ms watchdog as the web jog buttons
 
 
@@ -133,6 +136,9 @@ def handle_key(state, key, source="keyboard"):
         logger.info("[%s] Q — switch to %s", source, "MANUAL" if want_manual else "AUTO")
         return True, "MANUAL" if want_manual else "AUTO (ARMED)"
 
+    if key in ROTATE_KEYS:
+        return request_rotate(state, ROTATE_KEYS[key], source)
+
     if key in BRANCH_KEYS:
         branch = BRANCH_KEYS[key]
         if mode in ("running", "reversing", "emergency"):
@@ -143,3 +149,21 @@ def handle_key(state, key, source="keyboard"):
         return True, f"branch {branch}" + (" — START" if mode == "armed" else " selected")
 
     return False, f"unknown key '{key}'"
+
+
+def request_rotate(state, direction, source="keyboard"):
+    """Ask mode_manager for a 180° turn ("left" / "right"), or "stop".
+    While a turn is running, any rotate request stops it."""
+    import rotate
+    if state.current_mode == "rotating" or direction == "stop":
+        if state.current_mode != "rotating":
+            return False, "no turn running"
+        state.rotate_request = "stop"
+        logger.info("[%s] rotate — STOP", source)
+        return True, "rotate STOP"
+    ok, why = rotate.check_start(state)
+    if not ok:
+        return False, why
+    state.rotate_request = direction
+    logger.info("[%s] rotate 180° %s", source, direction.upper())
+    return True, f"rotate 180° {direction.upper()}"

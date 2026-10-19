@@ -659,6 +659,19 @@
     "DO_AREA": [3, 7],
     "DEFAULT_AREA": [false, false]
   },
+  "rotate": {
+    "_comment": "Putar 180° di atas pita magnet. Tombol T = kiri (CCW), Y = kanan (CW), atau tombol ROTATE 180° di halaman manual (mode MANUAL/ARMED). Berputar SPEED_MPS, melambat ke CREEP_MPS saat sensor depan menemukan pita lagi, rem saat |posisi| <= CENTER_TOL_MM. Gunakan di pita lurus, jauh dari percabangan/tag.",
+    "ENABLED": true,
+    "SPEED_MPS": 0.10,
+    "CREEP_MPS": 0.04,
+    "ACCEL_MPS2": 0.2,
+    "CENTER_TOL_MM": 5.0,
+    "MIN_ANGLE_DEG": 100.0,
+    "MAX_ANGLE_DEG": 260.0,
+    "TIMEOUT_S": 40.0,
+    "SETTLE_S": 0.5,
+    "BLOCK_WITH_TROLLEY": true
+  },
   "keypad": {
     "_comment": "Keypad USB (dongle) di PC AGV + keyboard laptop di halaman web MANUAL. WASD = gerak (tahan, hanya MANUAL), 1-5 = speed AUTO (APPROACH/SLOW/MEDIUM/HIGH/MAX), Z = pusher full UP, X = full DOWN, R = AUTO REVERSE start/stop, Q = ganti MANUAL/AUTO, 7/8/9/0 = start cabang 1/2/3/4, E = EMERGENCY STOP (lepas dengan RESET), ENTER = RESET. NAME_CONTAINS kosong = semua keyboard USB dipakai; isi dengan sebagian nama keypad (lihat: python3 debugging/list_keypads.py) supaya hanya keypad itu yang dipakai. GRAB true = tombol tidak masuk ke desktop/terminal PC AGV.",
     "ENABLED": true,

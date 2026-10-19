@@ -6,6 +6,7 @@ import config
 import motion
 import calibration
 import autotune
+import rotate
 
 from core.pid import PIDController
 from debugging.plotter import RunRecorder
@@ -778,6 +779,7 @@ async def mode_manager(state, engine=None, manager=None):
     state.at_homepost = config.ASSUME_AT_HOME_ON_BOOT
     last_branch_di = [False] * len(config.DI_BRANCH_SELECT)
     last_phys_manual = None   # physical MANUAL/AUTO selector, for the Q-key override
+    rotate_from_manual = False   # 180° turn: return to MANUAL (True) or ARMED afterwards
 
     async def _cancel_active():
         nonlocal active_task
@@ -821,6 +823,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.web_reverse_stop    = False
         state.call_run            = False   # next run is a normal run unless DI_CALL_START launches it
         state.kb_branch_request   = None    # a branch key pressed before this transition is dropped
+        state.rotate_request      = None    # a T/Y press before this transition is dropped
         # Don't touch state.trolley_hooked here — it reflects physical reality
         # (pusher.py keeps it live from the limit/prox sensors regardless of
         # AGV mode), not something a mode transition should reset. Pending
@@ -850,7 +853,7 @@ async def mode_manager(state, engine=None, manager=None):
         if config.DO_HORN_AUTO >= 0:
             # The ALARM horn replaces the AUTO horn while it is on.
             state.set_do(config.DO_HORN_AUTO,
-                         current_mode in ("running", "reversing", "autotune") and not state.alarm_active)
+                         current_mode in ("running", "reversing", "autotune", "rotating") and not state.alarm_active)
         if config.DO_HORN_ALARM >= 0:
             state.set_do(config.DO_HORN_ALARM, state.alarm_active)
         # Lidar field-set select outputs (pattern from set_lidar_area).
@@ -918,7 +921,7 @@ async def mode_manager(state, engine=None, manager=None):
         last_call   = btn_call
 
         # IO TEST MODE must never survive into autonomous motion.
-        if state.io_test_mode and current_mode in ("running", "reversing", "calibrate", "autotune"):
+        if state.io_test_mode and current_mode in ("running", "reversing", "calibrate", "autotune", "rotating"):
             state.io_test_mode = False
             state.clear_do_overrides()
             logger.warning("IO TEST MODE exited automatically — AGV is %s", current_mode)
@@ -1002,7 +1005,7 @@ async def mode_manager(state, engine=None, manager=None):
         # above — the panel isn't read as trustworthy while that bypass is on.
         branch_start = False   # a branch button pressed in ARMED also starts AUTO
         if not state.web_button_mode:
-            branch_locked = current_mode in ("running", "reversing", "emergency")
+            branch_locked = current_mode in ("running", "reversing", "emergency", "rotating")
             for _i, _pin in enumerate(config.DI_BRANCH_SELECT):
                 if _pin < 0 or _pin >= len(di):
                     continue
@@ -1025,7 +1028,7 @@ async def mode_manager(state, engine=None, manager=None):
         _kb_branch = state.kb_branch_request
         if _kb_branch is not None:
             state.kb_branch_request = None
-            if current_mode in ("running", "reversing", "emergency"):
+            if current_mode in ("running", "reversing", "emergency", "rotating"):
                 logger.warning("Branch key %s ignored — AGV is %s", _kb_branch, current_mode)
             else:
                 state.active_branch = _kb_branch
@@ -1047,6 +1050,59 @@ async def mode_manager(state, engine=None, manager=None):
             logger.info("Startup: ARMED (initializing outputs)")
             current_mode       = "armed"
             state.current_mode = current_mode
+
+        # ── 180° spin-turn (rotate.py) ────────────────────────────────────
+        # Started by T / Y (keyboard + AGV keypad) or the manual page, from
+        # MANUAL or ARMED. Ends centred on the tape, braked, back in the mode
+        # it came from (stop and wait). RESET, T/Y again, the web STOP or
+        # moving the selector stops it; emergency is handled above.
+        elif current_mode == "rotating":
+            done = active_task is None or active_task.done()
+            stop_req = state.rotate_request == "stop"
+            if reset_rising or stop_req or done or bool(switch_manual) != rotate_from_manual:
+                if done:
+                    if active_task is not None and not active_task.cancelled():
+                        exc = active_task.exception()
+                        if exc is not None:
+                            logger.error("[ROTATE] task error: %r", exc)
+                            state.rotate_status = {"phase": "failed", "message": f"error: {exc}",
+                                                   "angle": 0, "t": time.time()}
+                    active_task = None
+                else:
+                    logger.info("[ROTATE] %s — stopping the turn.",
+                                "RESET" if reset_rising else
+                                "STOP" if stop_req else "mode selector moved")
+                    await _cancel_active()
+                await _flush_and_idle()
+                state.rotate_request = None
+                if switch_manual:
+                    logger.info("[ROTATE] finished — back to MANUAL (braked).")
+                    active_task        = asyncio.create_task(manual_mode(state))
+                    current_mode       = "manual"
+                else:
+                    logger.info("[ROTATE] finished — back to ARMED (braked).")
+                    current_mode       = "armed"
+                state.current_mode = current_mode
+
+        elif (current_mode in ("manual", "armed") and state.rotate_request
+              and (current_mode == "manual") == bool(switch_manual)):
+            direction = state.rotate_request
+            state.rotate_request = None
+            ok, why = (False, "nothing to stop") if direction == "stop" else rotate.check_start(state)
+            if not ok:
+                if direction != "stop":
+                    logger.warning("[ROTATE] %s ignored — %s", direction.upper(), why)
+                    state.rotate_status = {"phase": "refused", "message": why,
+                                           "angle": 0, "t": time.time()}
+            else:
+                rotate_from_manual = current_mode == "manual"
+                await _cancel_active()          # stops manual_mode's jog loop
+                await _flush_and_idle()
+                state.web_manual_command = None
+                state.at_homepost  = False      # now facing the other way
+                active_task        = asyncio.create_task(rotate.rotate_mode(state, direction))
+                current_mode       = "rotating"
+                state.current_mode = current_mode
 
         elif switch_manual and current_mode != "manual":
             logger.info("Mode switch: MANUAL")

@@ -190,6 +190,7 @@ def _build_state_snapshot():
         "track_follow":         s.track_follow,
         "reverse_track":        s.reverse_track,
         "reverse_marker_armed": s.reverse_marker_armed,
+        "rotate_status":        dict(s.rotate_status or {}),
         "active_branch":        s.active_branch,
         "at_homepost":          s.at_homepost,
         "lidar_enabled":        config.LIDAR_ENABLED,
@@ -368,6 +369,23 @@ def api_pusher_jog():
     return jsonify({"ok": True, "direction": direction})
 
 
+@app.route("/api/rotate", methods=["POST"])
+def api_rotate():
+    """180° spin-turn on the tape from the MANUAL page (same as keys T / Y):
+    {"direction": "left" | "right"} — MANUAL or ARMED, tape under the front
+    sensor, no trolley hooked. {"direction": "stop"} — stop a running turn."""
+    if _state is None:
+        return jsonify({"error": "state not initialised"}), 503
+    data = request.get_json(silent=True) or {}
+    direction = data.get("direction")
+    if direction not in ("left", "right", "stop"):
+        return jsonify({"error": "direction must be 'left', 'right' or 'stop'"}), 400
+    ok, msg = keyboard_control.request_rotate(_state, direction, source="web")
+    if not ok:
+        return jsonify({"error": msg}), 409
+    return jsonify({"ok": True, "message": msg})
+
+
 @app.route("/api/reverse", methods=["POST"])
 def api_reverse():
     """AUTO REVERSE (PID tape-follow backwards) from the MANUAL page.
@@ -448,7 +466,7 @@ def api_branch():
     if _state is None:
         return jsonify({"error": "state not initialised"}), 503
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency", "autotune"):
+    if mode in ("running", "reversing", "emergency", "autotune", "rotating"):
         return jsonify({"error": f"Cannot change destination while AGV is {mode}"}), 403
 
     data   = request.get_json(silent=True) or {}
@@ -733,7 +751,7 @@ def api_set_features():
         return jsonify({"error": "state not initialised"}), 503
 
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency", "autotune"):
+    if mode in ("running", "reversing", "emergency", "autotune", "rotating"):
         return jsonify({"error": f"Cannot change settings while AGV is {mode}"}), 403
 
     if _manager is None:
@@ -786,7 +804,7 @@ def _tuning_guard():
     if _state is None:
         return {"error": "state not initialised"}, 503
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency", "autotune"):
+    if mode in ("running", "reversing", "emergency", "autotune", "rotating"):
         return {"error": f"Cannot change tuning while AGV is {mode}"}, 403
     return None
 
@@ -833,7 +851,7 @@ def api_tuning():
             "specs":    {k: list(v) for k, v in config.TUNABLE_SPECS.items()},
             "defaults": config.TUNABLE_DEFAULTS,
             "saved":    sorted(config.TUNING_SAVED),
-            "locked":   mode in ("running", "reversing", "emergency", "autotune"),
+            "locked":   mode in ("running", "reversing", "emergency", "autotune", "rotating"),
         })
 
     err = _tuning_guard()
@@ -949,7 +967,7 @@ def api_restart():
         return jsonify({"error": "state not initialised"}), 503
 
     mode = _state.current_mode
-    if mode in ("running", "reversing", "emergency", "autotune"):
+    if mode in ("running", "reversing", "emergency", "autotune", "rotating"):
         return jsonify({"error": f"Cannot restart while AGV is {mode}"}), 403
 
     # Verify passwordless sudo is configured for exactly this command before

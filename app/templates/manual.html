@@ -514,6 +514,20 @@
   }
   .pbtn-rev-start { background: #e8b060; font-size: 12px; padding: 12px 2px; }
   .pbtn-rev-stop  { font-size: 12px; padding: 12px 2px; }
+  #rotate-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 14px;
+    background: #b8b4ac;
+    border-left: 1px solid #a0a0a0;
+    flex-shrink: 0;
+    width: 150px;
+    align-self: stretch;
+    justify-content: center;
+  }
+  .pbtn-rot { background: #90b8e0; font-size: 12px; padding: 10px 2px; }
   #kb-panel {
     display: flex;
     flex-direction: column;
@@ -685,6 +699,15 @@
     <div class="rev-msg" id="rev-msg">Needs ARMED</div>
   </div>
 
+  <!-- ── 180° spin-turn on the tape (same as keys T / Y) ── -->
+  <div id="rotate-panel">
+    <div class="pusher-title">ROTATE 180°</div>
+    <button class="pbtn pbtn-rot" id="rot-left" disabled>&#8634;<br>LEFT (T)</button>
+    <button class="pbtn pbtn-rot" id="rot-right" disabled>&#8635;<br>RIGHT (Y)</button>
+    <button class="pbtn pbtn-rev-stop" id="rot-stop" disabled>&#9632;<br>STOP</button>
+    <div class="rev-msg" id="rot-msg">MANUAL / ARMED</div>
+  </div>
+
   <!-- ── Keyboard control (laptop keyboard; same keys as the AGV-PC keypad) ── -->
   <div id="kb-panel">
     <div class="pusher-title">KEYBOARD</div>
@@ -697,6 +720,7 @@
       <b>R</b> auto reverse start/stop<br>
       <b>Q</b> switch MANUAL / AUTO<br>
       <b>7 8 9 0</b> start branch 1-4<br>
+      <b>T / Y</b> rotate 180° left / right<br>
       <b>E</b> EMERGENCY STOP<br>
       <b>ENTER</b> RESET
     </div>
@@ -760,7 +784,7 @@
   const _keysDown = new Set();               // 'up' | 'down' | 'left' | 'right'
   const _dirOf = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
   const _wasd  = { w: 'up', s: 'down', a: 'left', d: 'right' };
-  const _actionKeys = new Set(['1','2','3','4','5','7','8','9','0','z','x','r','q','e','enter']);
+  const _actionKeys = new Set(['1','2','3','4','5','7','8','9','0','z','x','r','q','e','t','y','enter']);
   const kbToggle = document.getElementById('kb-toggle');
   const kbMsg    = document.getElementById('kb-msg');
   let kbEnabled  = false;
@@ -1089,6 +1113,57 @@
                        : 'Needs ARMED';
   }
 
+  // ── 180° spin-turn ────────────────────────────────────────────────────────
+  // LEFT/RIGHT enabled in MANUAL/ARMED, STOP while ROTATING (server re-checks:
+  // tape under the front sensor, no trolley hooked).
+  const rotLeftBtn  = document.getElementById('rot-left');
+  const rotRightBtn = document.getElementById('rot-right');
+  const rotStopBtn  = document.getElementById('rot-stop');
+  const rotMsg      = document.getElementById('rot-msg');
+  let   rotMsgUntil = 0;
+
+  function postRotate(direction) {
+    fetch('/api/rotate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction })
+    })
+    .then(r => r.json())
+    .then(d => {
+      rotMsg.style.color = d.ok ? '#006000' : '#c00000';
+      rotMsg.textContent = d.ok ? (d.message || 'OK') : (d.error || 'ERROR');
+      rotMsgUntil = Date.now() + 4000;
+    })
+    .catch(() => {
+      rotMsg.style.color = '#c00000';
+      rotMsg.textContent = 'NO CONNECTION';
+      rotMsgUntil = Date.now() + 4000;
+    });
+  }
+  rotLeftBtn.addEventListener('click',  () => postRotate('left'));
+  rotRightBtn.addEventListener('click', () => postRotate('right'));
+  rotStopBtn.addEventListener('click',  () => postRotate('stop'));
+
+  function applyRotateUi(mode, st) {
+    const canStart = (mode === 'manual' || mode === 'armed');
+    rotLeftBtn.disabled  = !canStart;
+    rotRightBtn.disabled = !canStart;
+    rotStopBtn.disabled  = (mode !== 'rotating');
+    if (Date.now() < rotMsgUntil) return;
+    const recent = st.t && (Date.now() / 1000 - st.t) < 15;
+    if (mode === 'rotating') {
+      rotMsg.style.color = '#000080';
+      rotMsg.textContent = 'TURNING ~' + (st.angle || 0) + '°' + (st.message ? ' — ' + st.message : '');
+    } else if (recent && st.phase && st.phase !== 'idle') {
+      const good = st.phase === 'done';
+      rotMsg.style.color = good ? '#006000' : '#c00000';
+      rotMsg.textContent = st.phase.toUpperCase() + (st.message ? ': ' + st.message : '');
+    } else {
+      rotMsg.style.color = '#000080';
+      rotMsg.textContent = canStart ? 'READY' : 'MANUAL / ARMED';
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════════
   //  STATE POLLING
   // ══════════════════════════════════════════════════════════════════════════════
@@ -1103,6 +1178,7 @@
     else if (mode === 'armed')     modeBadge.classList.add('mode-armed');
     else if (mode === 'running')   modeBadge.classList.add('mode-running');
     else if (mode === 'reversing') modeBadge.classList.add('mode-reversing');
+    else if (mode === 'rotating')  modeBadge.classList.add('mode-reversing');
     else if (mode === 'emergency') modeBadge.classList.add('mode-emergency');
 
     if (mode === 'manual') {
@@ -1131,6 +1207,7 @@
       const d = await r.json();
       applyMode(d.agv.mode);
       applyReverseUi(d.agv.mode);
+      applyRotateUi(d.agv.mode, d.agv.rotate_status || {});
 
       // Sync web button state from server (handles page reload / multi-tab)
       const serverWbm = d.agv.web_button_mode;

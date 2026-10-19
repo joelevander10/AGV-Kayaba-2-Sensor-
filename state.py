@@ -196,6 +196,10 @@ class AMRState:
         # DI10 stop marker is only obeyed after RFID BA was read in this
         # reverse ("arm_reverse_marker" action). Reset at every reverse start.
         self.reverse_marker_armed = False
+        # 180° spin-turn (rotate.py): "left" | "right" request from the T/Y keys
+        # or the manual page, consumed by mode_manager; status for the HMI.
+        self.rotate_request = None
+        self.rotate_status  = {"phase": "idle", "message": "", "angle": 0}
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
         self.lidar_zone = None
