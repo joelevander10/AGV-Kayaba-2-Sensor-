@@ -473,7 +473,14 @@ async def reverse_mode(state, engine=None):
         return bool(_mk >= 0 and di is not None and len(di) > _mk and di[_mk])
     marker_prev = _marker_on()
     state.reverse_speed_override = None   # CA sets it again on this run
-    state.reverse_track = "right"          # AE / BB switch it during this run
+    # Track for this reverse: fixed by the destination branch when the profile
+    # lists it (reverse_track_by_branch — AE / BB are then ignored), otherwise
+    # start RIGHT and let AE / BB switch it during this run.
+    _fixed = config.REVERSE_TRACK_BY_BRANCH.get(str(state.active_branch))
+    state.reverse_track = _fixed or "right"
+    if _fixed:
+        logger.info("[REVERSE] Branch %s — reverse track fixed %s (AE/BB ignored)",
+                    state.active_branch, _fixed.upper())
     state.reverse_marker_armed = False     # tag BA arms the DI10 stop marker
     held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
     held_remain = 0.0     # timeout budget left when the hold started

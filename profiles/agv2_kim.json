@@ -145,6 +145,12 @@
     "CURVE_SPEED_MODES": ["SLOW"],
     "FF_ALPHA": 0.15
   },
+  "reverse_track_by_branch": {
+    "_comment": "Track mundur (sensor belakang) tetap per cabang tujuan. Cabang 1 (DI4) & 3 (DI6) = kanan, cabang 2 (DI5) = kiri. Untuk cabang yang ada di sini, tag AE/BB saat mundur diabaikan. Cabang 4 / tanpa cabang: mulai kanan, AE/BB tetap berlaku. Kalau AGV ambil track yang salah, tukar left/right (sensor belakang bisa terbalik).",
+    "1": "right",
+    "2": "left",
+    "3": "right"
+  },
   "sequences": [
     {
       "_comment": "Slow down zone — RFID-only trigger",

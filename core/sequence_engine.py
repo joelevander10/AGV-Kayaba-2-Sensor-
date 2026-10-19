@@ -512,6 +512,12 @@ class SequenceEngine:
         if side not in ("left", "right"):
             logger.warning("[SEQ] set_reverse_track: invalid side %r — ignored", p.get("side"))
             return
+        import config
+        fixed = config.REVERSE_TRACK_BY_BRANCH.get(str(self._state.active_branch))
+        if fixed:
+            logger.info("[SEQ] Reverse track %s ignored — branch %s is fixed %s",
+                        side.upper(), self._state.active_branch, fixed.upper())
+            return
         self._state.reverse_track = side
         logger.info("[SEQ] Reverse track → %s", side.upper())
 

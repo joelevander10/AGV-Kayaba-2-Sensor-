@@ -151,6 +151,15 @@ AUTO_TARGET_REVERSE_SPEED    = _params["speeds"].get("AUTO_TARGET_REVERSE_SPEED"
 # up. If exceeded, the AGV brakes and holds — operator RESET required. Guards
 # against reversing indefinitely if the exit tag is missing/misread.
 REVERSE_TIMEOUT_S            = _params["speeds"].get("REVERSE_TIMEOUT_S", 30.0)
+# Reverse track fixed per destination branch ({"1": "right", "2": "left", ...}).
+# A branch listed here sets the reverse track at the start of every reverse and
+# the AE / BB set_reverse_track tags are ignored for it. Branches not listed
+# (or no branch) keep the old behaviour: start RIGHT, AE / BB switch it.
+REVERSE_TRACK_BY_BRANCH = {
+    str(k): str(v).lower()
+    for k, v in _params.get("reverse_track_by_branch", {}).items()
+    if not str(k).startswith("_")
+}
 
 # ── PID Tuning ────────────────────────────────────────────────────────────────
 # Steering direction for FORWARD auto: e = ERROR_SIGN_FORWARD * pv.
@@ -479,6 +488,9 @@ def _validate():
               f"{name} must be in [0, {_MAX_SPEED_MPS}] m/s (got {val})")
     check(ACCEL_RATE > 0, f"ACCEL_RATE must be > 0 (got {ACCEL_RATE})")
     check(REVERSE_TIMEOUT_S > 0, f"REVERSE_TIMEOUT_S must be > 0 (got {REVERSE_TIMEOUT_S})")
+    for _b, _side in REVERSE_TRACK_BY_BRANCH.items():
+        check(_side in ("left", "right"),
+              f"reverse_track_by_branch[{_b}] must be 'left' or 'right' (got {_side!r})")
 
     # IO mapping sanity
     check(NUM_DI >= 0, f"NUM_DI must be >= 0 (got {NUM_DI})")
