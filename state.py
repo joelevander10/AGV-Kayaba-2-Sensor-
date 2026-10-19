@@ -58,6 +58,8 @@ class KinematicState:
         # Same for tag "2" (branch 2's reverse tag): set at the C1 / marker
         # stop ("set_ignore_2"), cleared at CE ("clear_ignore_2").
         self.ignore_rfid_2        = False
+        # Tag "3" (reverse in every branch, always LEFT track): same gating.
+        self.ignore_rfid_3        = False
         # Homepost request. Set True by SequenceEngine's "go_home" action
         # (RFID tag "0") to command mode_manager to fully exit AUTO — cancels
         # the running task, idles the motors, and drops back to ARMED (same
@@ -205,6 +207,10 @@ class AMRState:
         # PID gain set override: "BRANCH" = SLOW branch gains (set by RFID
         # AA / AB / AC via set_speed "gains"); None = normal gains for the speed.
         self.gain_set = None
+        # Reverse track forced by the tag that started the reverse
+        # (start_reverse "track", e.g. tag 3 → "left"); beats the per-branch
+        # track and AE / BB. None = normal rules.
+        self.reverse_track_fixed = None
         self.rotate_status  = {"phase": "idle", "message": "", "angle": 0}
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
@@ -348,6 +354,11 @@ class AMRState:
     def ignore_rfid_2(self): return self.kinematic.ignore_rfid_2
     @ignore_rfid_2.setter
     def ignore_rfid_2(self, v): self.kinematic.ignore_rfid_2 = v
+
+    @property
+    def ignore_rfid_3(self): return self.kinematic.ignore_rfid_3
+    @ignore_rfid_3.setter
+    def ignore_rfid_3(self, v): self.kinematic.ignore_rfid_3 = v
 
     @property
     def homepost_request(self): return self.kinematic.homepost_request

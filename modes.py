@@ -499,11 +499,16 @@ async def reverse_mode(state, engine=None):
     # Track for this reverse: fixed by the destination branch when the profile
     # lists it (reverse_track_by_branch — AE / BB are then ignored), otherwise
     # start RIGHT and let AE / BB switch it during this run.
-    _fixed = config.REVERSE_TRACK_BY_BRANCH.get(str(state.active_branch))
+    # A track forced by the start tag (tag 3 → left) beats the branch rule.
+    if state.reverse_track_fixed:
+        _fixed = state.reverse_track_fixed
+        logger.info("[REVERSE] Start tag forces reverse track %s (AE/BB ignored)", _fixed.upper())
+    else:
+        _fixed = config.REVERSE_TRACK_BY_BRANCH.get(str(state.active_branch))
+        if _fixed:
+            logger.info("[REVERSE] Branch %s — reverse track fixed %s (AE/BB ignored)",
+                        state.active_branch, _fixed.upper())
     state.reverse_track = _fixed or "right"
-    if _fixed:
-        logger.info("[REVERSE] Branch %s — reverse track fixed %s (AE/BB ignored)",
-                    state.active_branch, _fixed.upper())
     state.reverse_marker_armed = False     # tag BA arms the DI10 stop marker
     held        = False   # sequence_stop hold (e.g. C1: waiting for pusher)
     held_remain = 0.0     # timeout budget left when the hold started
@@ -848,6 +853,7 @@ async def mode_manager(state, engine=None, manager=None):
         state.leaving_home        = False
         state.reverse_speed_override = None
         state.reverse_track       = "right"
+        state.reverse_track_fixed = None
         state.reverse_marker_armed = False
         state.alarm_active        = False   # RESET / emergency / mode change silences the alarm horn
         state.lidar_area          = list(config.LIDAR_DEFAULT_AREA)
@@ -1193,6 +1199,7 @@ async def mode_manager(state, engine=None, manager=None):
             # reverse — at the C1 tag (stop_reverse → resumes AUTO forward),
             # on REVERSE_TIMEOUT_S, or on RESET / web STOP (→ ARMED).
             logger.info("WEB REVERSE — launching REVERSE mode from ARMED.")
+            state.reverse_track_fixed = None   # normal track rules for a manual reverse
             state.reverse_request = True
             state.at_homepost     = False
             active_task        = asyncio.create_task(reverse_mode(state, engine=engine))

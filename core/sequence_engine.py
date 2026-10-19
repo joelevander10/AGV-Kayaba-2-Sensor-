@@ -81,6 +81,8 @@ class SequenceEngine:
             "clear_ignore_1":    self._act_clear_ignore_1,
             "set_ignore_2":      self._act_set_ignore_2,
             "clear_ignore_2":    self._act_clear_ignore_2,
+            "set_ignore_3":      self._act_set_ignore_3,
+            "clear_ignore_3":    self._act_clear_ignore_3,
             "go_home":           self._act_go_home,
             "exit_auto":         self._act_exit_auto,
             "wait_hooked":       self._act_wait_hooked,
@@ -432,8 +434,13 @@ class SequenceEngine:
         # Commands mode_manager into REVERSE (PID tape-follow, direction
         # flipped). mode_manager polls reverse_request and does the actual
         # mode transition — this action only raises the flag.
+        # Optional "track": "left" | "right" forces the reverse track for this
+        # whole reverse (tag 3 → left), ignoring the branch rule and AE / BB.
+        track = str(p.get("track", "")).lower()
+        self._state.reverse_track_fixed = track if track in ("left", "right") else None
         self._state.reverse_request = True
-        logger.info("[SEQ] Reverse requested")
+        logger.info("[SEQ] Reverse requested%s",
+                    f" — track fixed {track.upper()}" if self._state.reverse_track_fixed else "")
 
     async def _act_stop_reverse(self, p: dict):
         # Ends the reverse maneuver (fired by the C1 tag). Harmless no-op if
@@ -457,6 +464,14 @@ class SequenceEngine:
     async def _act_clear_ignore_2(self, p: dict):
         self._state.ignore_rfid_2 = False
         logger.info("[SEQ] ignore_rfid_2 CLEARED — tag '2' re-armed")
+
+    async def _act_set_ignore_3(self, p: dict):
+        self._state.ignore_rfid_3 = True
+        logger.info("[SEQ] ignore_rfid_3 SET — tag '3' will be ignored until CE")
+
+    async def _act_clear_ignore_3(self, p: dict):
+        self._state.ignore_rfid_3 = False
+        logger.info("[SEQ] ignore_rfid_3 CLEARED — tag '3' re-armed")
 
     async def _act_go_home(self, p: dict):
         # One-shot: raises the flag, mode_manager does the actual mode exit
@@ -527,10 +542,11 @@ class SequenceEngine:
             logger.warning("[SEQ] set_reverse_track: invalid side %r — ignored", p.get("side"))
             return
         import config
-        fixed = config.REVERSE_TRACK_BY_BRANCH.get(str(self._state.active_branch))
+        fixed = (self._state.reverse_track_fixed
+                 or config.REVERSE_TRACK_BY_BRANCH.get(str(self._state.active_branch)))
         if fixed:
-            logger.info("[SEQ] Reverse track %s ignored — branch %s is fixed %s",
-                        side.upper(), self._state.active_branch, fixed.upper())
+            logger.info("[SEQ] Reverse track %s ignored — track is fixed %s for this reverse",
+                        side.upper(), fixed.upper())
             return
         self._state.reverse_track = side
         logger.info("[SEQ] Reverse track → %s", side.upper())
