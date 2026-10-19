@@ -649,6 +649,27 @@
       "cooldown_s": 3.0
     },
     {
+      "_comment": "Tag CB — kebalikan dari CE: MENGABAIKAN tag mundur \"1\", \"2\" dan \"3\" (set ignore_rfid_1/2/3). Tag mundur aktif lagi setelah lewat CE. Sengaja TANPA requires_mode (kena saat RUNNING maupun REVERSING). Tag placeholder: ganti 00CB dengan hex tag sebenarnya.",
+      "name": "ignore_reverse_tags_cb",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00CB"
+      },
+      "actions": [
+        {
+          "type": "set_ignore_1"
+        },
+        {
+          "type": "set_ignore_2"
+        },
+        {
+          "type": "set_ignore_3"
+        }
+      ],
+      "cooldown_s": 3.0
+    },
+    {
       "_comment": "RFID \"0\" — HOMEPOST. Berhenti dan keluar total dari AUTO (balik ke ARMED, mirip RESET manual) — beda sama checkpoint_stop yang cuma nunggu terus lanjut lagi. Operator harus tekan START lagi buat jalan. Tag placeholder: ganti 0000 dengan hex tag sebenarnya. Juga reset pilihan cabang (clear_branch) — cabang hanya di-reset di homepost.",
       "name": "arrive_homepost",
       "category": "sequence",
