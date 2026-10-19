@@ -151,9 +151,8 @@
     "FF_ALPHA": 0.15
   },
   "reverse_track_by_branch": {
-    "_comment": "Track mundur (sensor belakang) tetap per cabang tujuan. Cabang 1 (DI4) & 3 (DI6) = kanan, cabang 2 (DI5) = kiri. Untuk cabang yang ada di sini, tag AE/BB saat mundur diabaikan. Cabang 4 / tanpa cabang: mulai kanan, AE/BB tetap berlaku. Kalau AGV ambil track yang salah, tukar left/right (sensor belakang bisa terbalik).",
+    "_comment": "Track mundur (sensor belakang) tetap per cabang tujuan. Cabang 1 (DI4) & 3 (DI6) = kanan. Untuk cabang yang ada di sini, tag AE/BB saat mundur diabaikan. Cabang 2, 4 / tanpa cabang: mulai kanan, AE/BB tetap berlaku. Kalau AGV ambil track yang salah, tukar left/right (sensor belakang bisa terbalik).",
     "1": "right",
-    "2": "left",
     "3": "right"
   },
   "sequences": [
@@ -364,7 +363,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track right (track KANAN).",
+      "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track left (sama seperti TITIK 1).",
       "name": "branch_titik_3",
       "category": "navigation",
       "trigger": {
@@ -380,7 +379,7 @@
         },
         {
           "type": "set_track",
-          "side": "right"
+          "side": "left"
         }
       ],
       "cooldown_s": 5.0,
@@ -498,7 +497,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Khusus CABANG 2: tag \"2\" satu-satunya tag mundur di cabang 2 (tag \"1\" dan \"3\" diabaikan) — berhenti, jeda 2 detik, mundur dengan track KANAN (start_reverse track right; AE/BB diabaikan). Diabaikan kalau bukan cabang 2. Digating oleh ignore_rfid_2 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0002 dengan hex tag sebenarnya.",
+      "_comment": "Khusus CABANG 2: tag \"2\" satu-satunya tag mundur di cabang 2 (tag \"1\" dan \"3\" diabaikan) — berhenti, jeda 2 detik, mundur mulai track KANAN; tag AE pindah ke KIRI, BB kembali ke KANAN. Diabaikan kalau bukan cabang 2. Digating oleh ignore_rfid_2 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0002 dengan hex tag sebenarnya.",
       "name": "reverse_at_2_branch2",
       "category": "sequence",
       "trigger": {
@@ -516,8 +515,7 @@
           "duration": 2.0
         },
         {
-          "type": "start_reverse",
-          "track": "right"
+          "type": "start_reverse"
         }
       ],
       "cooldown_s": 3.0,
