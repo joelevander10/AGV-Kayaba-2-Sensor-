@@ -364,7 +364,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track left (sama seperti TITIK 1).",
+      "_comment": "Cabang ke TITIK 3 — hanya bereaksi kalau active_branch == '3' (tombol DI_BRANCH_SELECT[2]). Tag placeholder: ganti 00AC dengan hex tag sebenarnya. Belok: set_track right (track KANAN).",
       "name": "branch_titik_3",
       "category": "navigation",
       "trigger": {
@@ -380,7 +380,7 @@
         },
         {
           "type": "set_track",
-          "side": "left"
+          "side": "right"
         }
       ],
       "cooldown_s": 5.0,
@@ -498,7 +498,7 @@
       "requires_mode": "running"
     },
     {
-      "_comment": "Khusus CABANG 2: tag \"2\" menggantikan tag \"1\" untuk mulai mundur — berhenti, jeda 2 detik, mundur (PID reverse-follow). Diabaikan kalau bukan cabang 2. Digating oleh ignore_rfid_2 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0002 dengan hex tag sebenarnya.",
+      "_comment": "Khusus CABANG 2: tag \"2\" satu-satunya tag mundur di cabang 2 (tag \"1\" dan \"3\" diabaikan) — berhenti, jeda 2 detik, mundur dengan track KANAN (start_reverse track right; AE/BB diabaikan). Diabaikan kalau bukan cabang 2. Digating oleh ignore_rfid_2 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0002 dengan hex tag sebenarnya.",
       "name": "reverse_at_2_branch2",
       "category": "sequence",
       "trigger": {
@@ -516,14 +516,15 @@
           "duration": 2.0
         },
         {
-          "type": "start_reverse"
+          "type": "start_reverse",
+          "track": "right"
         }
       ],
       "cooldown_s": 3.0,
       "requires_mode": "running"
     },
     {
-      "_comment": "Tag \"3\" — mulai mundur di SEMUA cabang: berhenti, jeda 2 detik, mundur dengan track KIRI saja (start_reverse track left — aturan track per cabang dan tag AE/BB diabaikan selama mundur ini). Digating oleh ignore_rfid_3 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0003 dengan hex tag sebenarnya.",
+      "_comment": "Tag \"3\" — mulai mundur di semua cabang KECUALI cabang 2: berhenti, jeda 2 detik, mundur dengan track KIRI saja (start_reverse track left — aturan track per cabang dan tag AE/BB diabaikan selama mundur ini). Digating oleh ignore_rfid_3 (di-set saat berhenti di marker / CC, di-clear di CE). Tag placeholder: ganti 0003 dengan hex tag sebenarnya.",
       "name": "reverse_at_3_left",
       "category": "sequence",
       "trigger": {
@@ -531,6 +532,7 @@
         "rfid_tag": "0003"
       },
       "skip_if_flag": "ignore_rfid_3",
+      "skip_if_branch": "2",
       "actions": [
         {
           "type": "stop_agv"
