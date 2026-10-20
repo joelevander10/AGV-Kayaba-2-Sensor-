@@ -891,12 +891,16 @@ async def mode_manager(state, engine=None, manager=None):
         # every cycle here (not just on mode change) so it always reflects
         # current_mode as of the end of the previous iteration — at most one
         # ~10ms loop tick stale, immaterial for a horn.
+        # The ALARM horn replaces the AUTO horn while it is on — when the
+        # trolley is not caught (alarm_active) and, with horn.ALARM_WHEN_REVERSING,
+        # for the whole time the AGV is REVERSING.
+        alarm_horn = state.alarm_active or (
+            config.HORN_ALARM_WHEN_REVERSING and current_mode == "reversing")
         if config.DO_HORN_AUTO >= 0:
-            # The ALARM horn replaces the AUTO horn while it is on.
             state.set_do(config.DO_HORN_AUTO,
-                         current_mode in ("running", "reversing", "autotune", "rotating") and not state.alarm_active)
+                         current_mode in ("running", "reversing", "autotune", "rotating") and not alarm_horn)
         if config.DO_HORN_ALARM >= 0:
-            state.set_do(config.DO_HORN_ALARM, state.alarm_active)
+            state.set_do(config.DO_HORN_ALARM, alarm_horn)
         # Lidar field-set select outputs (pattern from set_lidar_area).
         for _k, _ch in enumerate(config.LIDAR_DO_AREA):
             if _ch >= 0:

@@ -385,6 +385,9 @@ PUSHER_IGNORE_TROLLEY_LIMIT = bool(_pusher.get("IGNORE_TROLLEY_LIMIT", False))
 _horn = _params.get("horn", {})
 DO_HORN_AUTO  = _horn.get("DO_AUTO",  -1)
 DO_HORN_ALARM = _horn.get("DO_ALARM", -1)
+# ALARM_WHEN_REVERSING: use the ALARM horn (not the AUTO horn) the whole time
+# the AGV is REVERSING (incl. the hitch hold at the CC / marker stop).
+HORN_ALARM_WHEN_REVERSING = bool(_horn.get("ALARM_WHEN_REVERSING", True))
 
 # ── Lidar safety fields (AUTO forward only) ───────────────────────────────────
 # Three lidar outputs, read as DI (as the code sees them after DI_FLIPPED).
