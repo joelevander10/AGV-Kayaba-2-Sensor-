@@ -406,6 +406,24 @@
       "requires_mode": "running"
     },
     {
+      "_comment": "Tag A3 — KHUSUS cabang 3 (requires_branch \"3\"): pindah ke track KANAN (sama seperti BB). Cabang lain melewati tag ini tanpa aksi. Kecepatan tidak diubah. Tag placeholder: ganti 00A3 dengan hex tag sebenarnya.",
+      "name": "branch3_track_right_a3",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00A3"
+      },
+      "requires_branch": "3",
+      "actions": [
+        {
+          "type": "set_track",
+          "side": "right"
+        }
+      ],
+      "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
       "_comment": "Cabang ke TITIK 4 — hanya bereaksi kalau active_branch == '4' (tombol DI_BRANCH_SELECT[3]). Tag placeholder: ganti 00AD dengan hex tag sebenarnya. BELUM ada aksi belok/set_track — isi setelah rute fisik titik 4 ditentukan (lihat catatan di jawaban).",
       "name": "branch_titik_4",
       "category": "navigation",
