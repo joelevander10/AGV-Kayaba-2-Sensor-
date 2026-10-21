@@ -227,6 +227,26 @@ DT          = _params["pid_tuning"]["DT"]
 
 V_RED_COEF            = _params["pid_tuning"]["V_RED_COEF"]
 V_RED_COEF_SLOW       = _params["pid_tuning"]["V_RED_COEF_SLOW"]
+
+# PID gains on the 50 mm tape area (RFID 0050 enters, 0030 leaves — see the
+# enter_tape_50mm / exit_tape_50mm actions). One set per speed mode; falls back
+# to that mode's normal gains when the profile has no *_50MM keys.
+KP_MAX_50MM            = float(_params["pid_tuning"].get("KP_MAX_50MM", KP_MAX))
+TD_MAX_50MM            = float(_params["pid_tuning"].get("TD_MAX_50MM", TD_MAX))
+N_MAX_50MM             = float(_params["pid_tuning"].get("N_MAX_50MM", N_MAX))
+V_RED_COEF_MAX_50MM    = float(_params["pid_tuning"].get("V_RED_COEF_MAX_50MM", V_RED_COEF_MAX))
+KP_HIGH_50MM           = float(_params["pid_tuning"].get("KP_HIGH_50MM", KP))
+TD_HIGH_50MM           = float(_params["pid_tuning"].get("TD_HIGH_50MM", TD))
+N_HIGH_50MM            = float(_params["pid_tuning"].get("N_HIGH_50MM", N))
+V_RED_COEF_HIGH_50MM   = float(_params["pid_tuning"].get("V_RED_COEF_HIGH_50MM", V_RED_COEF))
+KP_MEDIUM_50MM         = float(_params["pid_tuning"].get("KP_MEDIUM_50MM", KP_MEDIUM))
+TD_MEDIUM_50MM         = float(_params["pid_tuning"].get("TD_MEDIUM_50MM", TD_MEDIUM))
+N_MEDIUM_50MM          = float(_params["pid_tuning"].get("N_MEDIUM_50MM", N_MEDIUM))
+V_RED_COEF_MEDIUM_50MM = float(_params["pid_tuning"].get("V_RED_COEF_MEDIUM_50MM", V_RED_COEF_MEDIUM))
+KP_SLOW_50MM           = float(_params["pid_tuning"].get("KP_SLOW_50MM", KP_SLOW))
+TD_SLOW_50MM           = float(_params["pid_tuning"].get("TD_SLOW_50MM", TD_SLOW))
+N_SLOW_50MM            = float(_params["pid_tuning"].get("N_SLOW_50MM", N_SLOW))
+V_RED_COEF_SLOW_50MM   = float(_params["pid_tuning"].get("V_RED_COEF_SLOW_50MM", V_RED_COEF_SLOW))
 V_RED_COEF_APPROACH   = _params["pid_tuning"].get("V_RED_COEF_APPROACH", 0)
 OUTPUT_CLAMP_RPM = _params["pid_tuning"]["OUTPUT_CLAMP_RPM"]
 # Asymmetric APPROACH clamp (magnitudes, rpm). The station approach is guided by a
@@ -659,6 +679,23 @@ TUNABLE_SPECS = {   # key: (min, max)
     "TD_SLOW_BRANCH":                 (0.0,   5.0),
     "N_SLOW_BRANCH":                  (1.0,   100.0),
     "V_RED_COEF_SLOW_BRANCH":         (0.0,   50.0),
+    # PID gains — 50 mm tape area
+    "KP_MAX_50MM":                    (0.0,   50.0),
+    "TD_MAX_50MM":                    (0.0,   5.0),
+    "N_MAX_50MM":                     (1.0,   100.0),
+    "V_RED_COEF_MAX_50MM":            (0.0,   50.0),
+    "KP_HIGH_50MM":                   (0.0,   50.0),
+    "TD_HIGH_50MM":                   (0.0,   5.0),
+    "N_HIGH_50MM":                    (1.0,   100.0),
+    "V_RED_COEF_HIGH_50MM":           (0.0,   50.0),
+    "KP_MEDIUM_50MM":                 (0.0,   50.0),
+    "TD_MEDIUM_50MM":                 (0.0,   5.0),
+    "N_MEDIUM_50MM":                  (1.0,   100.0),
+    "V_RED_COEF_MEDIUM_50MM":         (0.0,   50.0),
+    "KP_SLOW_50MM":                   (0.0,   50.0),
+    "TD_SLOW_50MM":                   (0.0,   5.0),
+    "N_SLOW_50MM":                    (1.0,   100.0),
+    "V_RED_COEF_SLOW_50MM":           (0.0,   50.0),
     # PID gains — APPROACH
     "KP_APPROACH":                    (0.0,   50.0),
     "TD_APPROACH":                    (0.0,   5.0),

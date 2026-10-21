@@ -230,7 +230,10 @@ def _build_state_snapshot():
         "v_right":        round(s.right_rpm / config.GEAR_RATIO * config.WHEEL_CIRCUMFERENCE / 60.0, 3),
         "pid_output":     round(s.pid_output, 1),
         "target_speed":   round(s.target_speed, 3),
-        "speed_mode":     (s.speed_mode + " (BRANCH)"
+        "speed_mode":     (s.speed_mode + " (50mm)"
+                           if getattr(s, "tape_50mm", False)
+                           and s.speed_mode in ("MAX", "HIGH", "MEDIUM", "SLOW")
+                           else s.speed_mode + " (BRANCH)"
                            if s.speed_mode == "SLOW" and s.gain_set == "BRANCH"
                            else s.speed_mode),
     }

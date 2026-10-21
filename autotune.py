@@ -49,6 +49,11 @@ MODE_INFO = {
     # the branch tape / curve if possible — that is where these gains are used.
     "SLOW_BRANCH": ("AUTO_TARGET_SLOW_SPEED", ("KP_SLOW_BRANCH", "TD_SLOW_BRANCH",
                                                "N_SLOW_BRANCH", "V_RED_COEF_SLOW_BRANCH")),
+    # 50 mm tape gains — run these ON the 50 mm tape area.
+    "MAX_50MM":    ("AUTO_TARGET_MAX_SPEED",    ("KP_MAX_50MM", "TD_MAX_50MM", "N_MAX_50MM", "V_RED_COEF_MAX_50MM")),
+    "HIGH_50MM":   ("AUTO_TARGET_HIGH_SPEED",   ("KP_HIGH_50MM", "TD_HIGH_50MM", "N_HIGH_50MM", "V_RED_COEF_HIGH_50MM")),
+    "MEDIUM_50MM": ("AUTO_TARGET_MEDIUM_SPEED", ("KP_MEDIUM_50MM", "TD_MEDIUM_50MM", "N_MEDIUM_50MM", "V_RED_COEF_MEDIUM_50MM")),
+    "SLOW_50MM":   ("AUTO_TARGET_SLOW_SPEED",   ("KP_SLOW_50MM", "TD_SLOW_50MM", "N_SLOW_50MM", "V_RED_COEF_SLOW_50MM")),
 }
 
 DEFAULTS = {"relay_rpm": 20.0, "hyst_mm": 1.5, "err_limit_mm": 50.0,

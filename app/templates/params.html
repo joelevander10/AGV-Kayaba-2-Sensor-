@@ -348,7 +348,7 @@
   <div class="section-title">PID AUTO-TUNE &nbsp;<span class="dep-note">(relay test · ARMED on a STRAIGHT tape · area clear)</span></div>
   <div class="at-row">
     <label>Speed mode
-      <select id="at-mode"><option>MAX</option><option selected>HIGH</option><option>MEDIUM</option><option>SLOW</option><option value="SLOW_BRANCH">SLOW BRANCH (AA/AB/AC)</option></select></label>
+      <select id="at-mode"><option>MAX</option><option selected>HIGH</option><option>MEDIUM</option><option>SLOW</option><option value="SLOW_BRANCH">SLOW BRANCH (AA/AB/AC)</option><option value="MAX_50MM">MAX · 50 mm tape</option><option value="HIGH_50MM">HIGH · 50 mm tape</option><option value="MEDIUM_50MM">MEDIUM · 50 mm tape</option><option value="SLOW_50MM">SLOW · 50 mm tape</option></select></label>
     <label>Relay (rpm)<input id="at-relay" type="number" value="20" min="5" max="400" step="5"></label>
     <label>Max error (mm)<input id="at-limit" type="number" value="50" min="10" max="90" step="5"></label>
     <label>Time limit (s)<input id="at-time" type="number" value="30" min="5" max="120" step="5"></label>
@@ -558,6 +558,18 @@ const TUNE_LAYOUT = [
   ['PID GAINS — SLOW BRANCH (AA / AB / AC)', [
     ['KP_SLOW_BRANCH', 'KP'], ['TD_SLOW_BRANCH', 'TD'], ['N_SLOW_BRANCH', 'N'],
     ['V_RED_COEF_SLOW_BRANCH', 'V-Red'],
+  ]],
+  ['PID GAINS — MAX · 50 mm TAPE', [
+    ['KP_MAX_50MM', 'KP'], ['TD_MAX_50MM', 'TD'], ['N_MAX_50MM', 'N'], ['V_RED_COEF_MAX_50MM', 'V-Red'],
+  ]],
+  ['PID GAINS — HIGH · 50 mm TAPE', [
+    ['KP_HIGH_50MM', 'KP'], ['TD_HIGH_50MM', 'TD'], ['N_HIGH_50MM', 'N'], ['V_RED_COEF_HIGH_50MM', 'V-Red'],
+  ]],
+  ['PID GAINS — MEDIUM · 50 mm TAPE', [
+    ['KP_MEDIUM_50MM', 'KP'], ['TD_MEDIUM_50MM', 'TD'], ['N_MEDIUM_50MM', 'N'], ['V_RED_COEF_MEDIUM_50MM', 'V-Red'],
+  ]],
+  ['PID GAINS — SLOW · 50 mm TAPE', [
+    ['KP_SLOW_50MM', 'KP'], ['TD_SLOW_50MM', 'TD'], ['N_SLOW_50MM', 'N'], ['V_RED_COEF_SLOW_50MM', 'V-Red'],
   ]],
   ['PID GAINS — APPROACH', [
     ['KP_APPROACH', 'KP'], ['TD_APPROACH', 'TD'], ['N_APPROACH', 'N'],

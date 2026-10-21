@@ -186,10 +186,24 @@ async def auto_mode(state, engine=None):
             # Only switch gains when speed_mode actually changes — avoids
             # redundant recomputation of the derivative filter coefficient.
             # SLOW branch gains (AA / AB / AC) only while SLOW and that tag set them.
-            branch_gains = state.speed_mode == "SLOW" and state.gain_set == "BRANCH"
-            gain_key = (state.speed_mode, branch_gains)
+            # 50 mm tape area (RFID 0050 / 0030): own gains per speed mode,
+            # takes priority over the SLOW branch gains.
+            wide_tape = (getattr(state, "tape_50mm", False)
+                         and state.speed_mode in ("MAX", "HIGH", "MEDIUM", "SLOW"))
+            branch_gains = (not wide_tape and state.speed_mode == "SLOW"
+                            and state.gain_set == "BRANCH")
+            gain_key = (state.speed_mode, branch_gains, wide_tape)
             if gain_key != last_speed_mode:
-                if branch_gains:
+                if wide_tape:
+                    _m = state.speed_mode
+                    pid.update_gains(getattr(config, f"KP_{_m}_50MM"),
+                                     getattr(config, f"TD_{_m}_50MM"),
+                                     getattr(config, f"N_{_m}_50MM"),
+                                     getattr(config, f"V_RED_COEF_{_m}_50MM"),
+                                     clamp_hi=config.OUTPUT_CLAMP_RPM,
+                                     clamp_lo=-config.OUTPUT_CLAMP_RPM)
+                    logger.info("[AUTO] PID gains → %s 50mm", _m)
+                elif branch_gains:
                     pid.update_gains(config.KP_SLOW_BRANCH, config.TD_SLOW_BRANCH,
                                      config.N_SLOW_BRANCH, config.V_RED_COEF_SLOW_BRANCH,
                                      clamp_hi=config.OUTPUT_CLAMP_RPM,
@@ -341,7 +355,7 @@ async def auto_mode(state, engine=None):
                 state.target_speed = current_target_speed
 
                 recorder.record(
-                    phase=state.speed_mode, speed_mode=state.speed_mode,
+                    phase=state.speed_mode + ("_50MM" if wide_tape else ""), speed_mode=state.speed_mode,
                     target_speed_ms=target_speed, cmd_speed_ms=current_target_speed,
                     track=state.track_follow,
                     raw_left_mm=sensor.get("left_mm"), raw_right_mm=sensor.get("right_mm"),
@@ -843,6 +857,7 @@ async def mode_manager(state, engine=None, manager=None):
     def _reset_sequence_state():
         state.speed_mode          = "SLOW"
         state.gain_set            = None
+        state.tape_50mm           = False
         state.sequence_stop       = False
         state.nav_in_corner       = False
         # Default is "right" — the front sensor's left/right reporting is

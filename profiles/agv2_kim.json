@@ -110,6 +110,23 @@
     "TD_SLOW_BRANCH": 0.14,
     "N_SLOW_BRANCH": 12,
     "V_RED_COEF_SLOW_BRANCH": 2,
+    "_comment_50mm": "Gain di area pita 50 mm (RFID 0050 masuk, 0030 keluar) — satu set per mode kecepatan, awal = gain normal. Auto-tune di PARAMS pilih \"... · 50 mm tape\" dan jalankan DI pita 50 mm.",
+    "KP_MAX_50MM": 1.0,
+    "TD_MAX_50MM": 0.15,
+    "N_MAX_50MM": 20,
+    "V_RED_COEF_MAX_50MM": 4,
+    "KP_HIGH_50MM": 1.4,
+    "TD_HIGH_50MM": 0.12,
+    "N_HIGH_50MM": 20,
+    "V_RED_COEF_HIGH_50MM": 4,
+    "KP_MEDIUM_50MM": 2.2,
+    "TD_MEDIUM_50MM": 0.14,
+    "N_MEDIUM_50MM": 12,
+    "V_RED_COEF_MEDIUM_50MM": 2,
+    "KP_SLOW_50MM": 2.2,
+    "TD_SLOW_50MM": 0.14,
+    "N_SLOW_50MM": 12,
+    "V_RED_COEF_SLOW_50MM": 2,
     "_comment_shared": "Shared — integral and timing constants",
     "TI": 20,
     "TI_DEADBAND": 25,
@@ -421,6 +438,38 @@
         }
       ],
       "cooldown_s": 5.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Tag 0050 — MASUK area pita 50 mm (lurus): pakai gain PID *_50MM untuk MAX/HIGH/MEDIUM/SLOW. Pasang tepat di awal pita 50 mm. Kalau area dilewati dua arah, pasang 0050 di dalam ujung pita 50 mm di kedua sisi dan 0030 di luar (di pita 30 mm) di kedua sisi. Tag placeholder: ganti 0050.",
+      "name": "tape_50mm_enter",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0050"
+      },
+      "actions": [
+        {
+          "type": "enter_tape_50mm"
+        }
+      ],
+      "cooldown_s": 2.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Tag 0030 — KELUAR area pita 50 mm (kembali ke pita 30 mm): gain PID normal lagi. Tag placeholder: ganti 0030.",
+      "name": "tape_50mm_exit",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "0030"
+      },
+      "actions": [
+        {
+          "type": "exit_tape_50mm"
+        }
+      ],
+      "cooldown_s": 2.0,
       "requires_mode": "running"
     },
     {

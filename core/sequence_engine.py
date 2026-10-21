@@ -83,6 +83,8 @@ class SequenceEngine:
             "clear_ignore_2":    self._act_clear_ignore_2,
             "set_ignore_3":      self._act_set_ignore_3,
             "set_ignore_ae":     self._act_set_ignore_ae,
+            "enter_tape_50mm":   self._act_enter_tape_50mm,
+            "exit_tape_50mm":    self._act_exit_tape_50mm,
             "clear_ignore_ae":   self._act_clear_ignore_ae,
             "clear_ignore_3":    self._act_clear_ignore_3,
             "go_home":           self._act_go_home,
@@ -483,6 +485,16 @@ class SequenceEngine:
         if getattr(self._state, "ignore_rfid_ae", False):
             logger.info("[SEQ] ignore_rfid_ae CLEARED — tag AE re-armed")
         self._state.ignore_rfid_ae = False
+
+    async def _act_enter_tape_50mm(self, p: dict):
+        if not getattr(self._state, "tape_50mm", False):
+            logger.info("[SEQ] 50 mm tape area — using *_50MM PID gains")
+        self._state.tape_50mm = True
+
+    async def _act_exit_tape_50mm(self, p: dict):
+        if getattr(self._state, "tape_50mm", False):
+            logger.info("[SEQ] 50 mm tape area left — normal PID gains")
+        self._state.tape_50mm = False
 
     async def _act_go_home(self, p: dict):
         # One-shot: raises the flag, mode_manager does the actual mode exit

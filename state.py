@@ -214,6 +214,10 @@ class AMRState:
         # Tag AE ignored (forward fork and reverse) after RFID B2 in branch 2
         # ("set_ignore_ae"); re-armed at homepost RFID 0 ("clear_ignore_ae").
         self.ignore_rfid_ae = False
+        # True while driving on the 50 mm tape area (RFID 0050 → True,
+        # 0030 → False; also False after RESET / homepost). Selects the
+        # *_50MM PID gains for MAX / HIGH / MEDIUM / SLOW.
+        self.tape_50mm = False
         self.rotate_status  = {"phase": "idle", "message": "", "angle": 0}
         # Lidar: zone currently seen ("inner"|"middle"|"outer"|None) and the
         # DO pattern selecting the lidar field set ([DO_AREA[0], DO_AREA[1]]).
