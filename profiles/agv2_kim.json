@@ -80,6 +80,7 @@
     "AUTO_TARGET_APPROACH_SPEED": 0.1,
     "AUTO_TARGET_SLOW_SPEED": 0.2,
     "AUTO_TARGET_EXTRA_SLOW_SPEED": 0.15,
+    "AUTO_TARGET_CURVE_SPEED": 0.3,
     "ACCEL_RATE": 0.2,
     "DECEL_RATE": 0.2,
     "APPROACH_DECEL_RATE": 0.2
@@ -127,6 +128,14 @@
     "TD_SLOW_50MM": 0.14,
     "N_SLOW_50MM": 12,
     "V_RED_COEF_SLOW_50MM": 2,
+    "_comment_curve": "Gain CURVE (RFID A4, belok kiri/kanan, radius apa saja) sampai tag kecepatan berikutnya. KP lebih kuat + integral cepat (TI_CURVE detik, aktif sampai error TI_DEADBAND_CURVE mm) yang belajar sendiri koreksi belokan; integral di-reset saat masuk dan keluar belokan.",
+    "KP_CURVE": 3.5,
+    "TD_CURVE": 0.25,
+    "N_CURVE": 12,
+    "V_RED_COEF_CURVE": 2,
+    "TI_CURVE": 1.5,
+    "TI_DEADBAND_CURVE": 80,
+    "TI_MAX_CURVE": 400,
     "_comment_shared": "Shared — integral and timing constants",
     "TI": 20,
     "TI_DEADBAND": 25,
@@ -467,6 +476,23 @@
       "actions": [
         {
           "type": "exit_tape_50mm"
+        }
+      ],
+      "cooldown_s": 2.0,
+      "requires_mode": "running"
+    },
+    {
+      "_comment": "Tag A4 — AWAL BELOKAN (semua cabang, kiri atau kanan, radius apa saja): mode kecepatan CURVE (AUTO_TARGET_CURVE_SPEED 0.3 m/s) dengan gain CURVE + integral cepat. Selesai di tag kecepatan berikutnya (0014/0015/0016/0018/0012) — pasang tag kecepatan di akhir belokan. Tag placeholder: ganti 00A4.",
+      "name": "curve_a4",
+      "category": "navigation",
+      "trigger": {
+        "type": "rfid",
+        "rfid_tag": "00A4"
+      },
+      "actions": [
+        {
+          "type": "set_speed",
+          "speed": "CURVE"
         }
       ],
       "cooldown_s": 2.0,

@@ -165,6 +165,9 @@ async def auto_mode(state, engine=None):
                 target_speed = config.AUTO_TARGET_APPROACH_SPEED
             elif state.speed_mode == "SLOW":
                 target_speed = config.AUTO_TARGET_SLOW_SPEED
+            elif state.speed_mode == "CURVE":
+                # RFID A4 — curve zone, until the next speed tag.
+                target_speed = config.AUTO_TARGET_CURVE_SPEED
             elif state.speed_mode == "EXTRA_SLOW":
                 # After a reverse (stop_at_c1 resume) — SLOW gains (else-branch below).
                 target_speed = config.AUTO_TARGET_EXTRA_SLOW_SPEED
@@ -194,7 +197,21 @@ async def auto_mode(state, engine=None):
                             and state.gain_set == "BRANCH")
             gain_key = (state.speed_mode, branch_gains, wide_tape)
             if gain_key != last_speed_mode:
-                if wide_tape:
+                # Fresh integral when entering or leaving a curve, so a learned
+                # curve offset never carries into the straight (or vice versa).
+                if (state.speed_mode == "CURVE") != (
+                        last_speed_mode is not None and last_speed_mode[0] == "CURVE"):
+                    pid.integral = 0.0
+                if state.speed_mode == "CURVE":
+                    pid.update_gains(config.KP_CURVE, config.TD_CURVE,
+                                     config.N_CURVE, config.V_RED_COEF_CURVE,
+                                     clamp_hi=config.OUTPUT_CLAMP_RPM,
+                                     clamp_lo=-config.OUTPUT_CLAMP_RPM,
+                                     ti=config.TI_CURVE,
+                                     ti_deadband=config.TI_DEADBAND_CURVE,
+                                     ti_max=config.TI_MAX_CURVE)
+                    logger.info("[AUTO] PID gains → CURVE")
+                elif wide_tape:
                     _m = state.speed_mode
                     pid.update_gains(getattr(config, f"KP_{_m}_50MM"),
                                      getattr(config, f"TD_{_m}_50MM"),

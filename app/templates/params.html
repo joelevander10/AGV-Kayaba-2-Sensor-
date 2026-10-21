@@ -531,6 +531,7 @@ const TUNE_LAYOUT = [
     ['AUTO_TARGET_SLOW_SPEED',     'Slow (m/s)'],
     ['AUTO_TARGET_APPROACH_SPEED', 'Approach (m/s)'],
     ['AUTO_TARGET_EXTRA_SLOW_SPEED', 'After reverse (m/s)'],
+    ['AUTO_TARGET_CURVE_SPEED',      'Curve A4 (m/s)'],
     ['ACCEL_RATE',                 'Accel (m/s²)'],
     ['DECEL_RATE',                 'Decel (m/s²)'],
     ['APPROACH_DECEL_RATE',        'Appr Decel (m/s²)'],
@@ -570,6 +571,10 @@ const TUNE_LAYOUT = [
   ]],
   ['PID GAINS — SLOW · 50 mm TAPE', [
     ['KP_SLOW_50MM', 'KP'], ['TD_SLOW_50MM', 'TD'], ['N_SLOW_50MM', 'N'], ['V_RED_COEF_SLOW_50MM', 'V-Red'],
+  ]],
+  ['PID GAINS — CURVE (A4)', [
+    ['KP_CURVE', 'KP'], ['TD_CURVE', 'TD'], ['N_CURVE', 'N'], ['V_RED_COEF_CURVE', 'V-Red'],
+    ['TI_CURVE', 'TI (s)'], ['TI_DEADBAND_CURVE', 'TI band (mm)'], ['TI_MAX_CURVE', 'TI max'],
   ]],
   ['PID GAINS — APPROACH', [
     ['KP_APPROACH', 'KP'], ['TD_APPROACH', 'TD'], ['N_APPROACH', 'N'],

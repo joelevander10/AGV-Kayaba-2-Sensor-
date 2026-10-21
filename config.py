@@ -141,6 +141,9 @@ AUTO_TARGET_APPROACH_SPEED   = _params["speeds"].get("AUTO_TARGET_APPROACH_SPEED
 # EXTRA_SLOW speed mode — used when driving forward again after a reverse
 # (stop_at_c1 "resume" EXTRA_SLOW). Same PID gains as SLOW.
 AUTO_TARGET_EXTRA_SLOW_SPEED = _params["speeds"].get("AUTO_TARGET_EXTRA_SLOW_SPEED", 0.15)
+# CURVE speed mode — set by RFID A4 at the start of a curve, ends at the next
+# speed tag. Own PID gains incl. a fast integral (KP/TD/N/V_RED/TI_*_CURVE).
+AUTO_TARGET_CURVE_SPEED      = _params["speeds"].get("AUTO_TARGET_CURVE_SPEED", 0.3)
 ACCEL_RATE                   = _params["speeds"]["ACCEL_RATE"]
 DECEL_RATE                   = _params["speeds"]["DECEL_RATE"]
 APPROACH_DECEL_RATE          = _params["speeds"]["APPROACH_DECEL_RATE"]
@@ -223,6 +226,18 @@ V_RED_COEF_REVERSE  = _params["pid_tuning"].get("V_RED_COEF_REVERSE",  _params["
 TI          = _params["pid_tuning"]["TI"]
 TI_DEADBAND = _params["pid_tuning"]["TI_DEADBAND"]
 TI_MAX      = _params["pid_tuning"]["TI_MAX"]
+
+# PID gains — CURVE (RFID A4, any direction / radius). A stronger KP plus a
+# FAST integral with a wide deadband: the integral learns the constant steering
+# a curve needs (left or right, any radius), so the AGV stays centred instead
+# of riding off-centre. The integral is cleared when entering and leaving.
+KP_CURVE          = float(_params["pid_tuning"].get("KP_CURVE",          3.5))
+TD_CURVE          = float(_params["pid_tuning"].get("TD_CURVE",          0.25))
+N_CURVE           = float(_params["pid_tuning"].get("N_CURVE",           12))
+V_RED_COEF_CURVE  = float(_params["pid_tuning"].get("V_RED_COEF_CURVE",  2))
+TI_CURVE          = float(_params["pid_tuning"].get("TI_CURVE",          1.5))
+TI_DEADBAND_CURVE = float(_params["pid_tuning"].get("TI_DEADBAND_CURVE", 80.0))
+TI_MAX_CURVE      = float(_params["pid_tuning"].get("TI_MAX_CURVE",      400.0))
 DT          = _params["pid_tuning"]["DT"]
 
 V_RED_COEF            = _params["pid_tuning"]["V_RED_COEF"]
@@ -524,6 +539,7 @@ def _validate():
         ("AUTO_TARGET_SLOW_SPEED",   AUTO_TARGET_SLOW_SPEED),
         ("AUTO_TARGET_APPROACH_SPEED",   AUTO_TARGET_APPROACH_SPEED),
         ("AUTO_TARGET_EXTRA_SLOW_SPEED", AUTO_TARGET_EXTRA_SLOW_SPEED),
+        ("AUTO_TARGET_CURVE_SPEED",      AUTO_TARGET_CURVE_SPEED),
         ("AUTO_TARGET_REVERSE_SPEED",    AUTO_TARGET_REVERSE_SPEED),
     ]:
         check(0 <= val <= _MAX_SPEED_MPS,
@@ -644,6 +660,7 @@ TUNABLE_SPECS = {   # key: (min, max)
     "AUTO_TARGET_SLOW_SPEED":         (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_APPROACH_SPEED":     (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_EXTRA_SLOW_SPEED":   (0.0,   _MAX_SPEED_MPS),
+    "AUTO_TARGET_CURVE_SPEED":        (0.0,   _MAX_SPEED_MPS),
     "AUTO_TARGET_REVERSE_SPEED":      (0.0,   _MAX_SPEED_MPS),
     "ACCEL_RATE":                     (0.01,  10.0),
     "DECEL_RATE":                     (0.01,  10.0),
@@ -679,6 +696,14 @@ TUNABLE_SPECS = {   # key: (min, max)
     "TD_SLOW_BRANCH":                 (0.0,   5.0),
     "N_SLOW_BRANCH":                  (1.0,   100.0),
     "V_RED_COEF_SLOW_BRANCH":         (0.0,   50.0),
+    # PID gains — CURVE (RFID A4)
+    "KP_CURVE":                       (0.0,   50.0),
+    "TD_CURVE":                       (0.0,   5.0),
+    "N_CURVE":                        (1.0,   100.0),
+    "V_RED_COEF_CURVE":               (0.0,   50.0),
+    "TI_CURVE":                       (0.2,   100.0),
+    "TI_DEADBAND_CURVE":              (1.0,   200.0),
+    "TI_MAX_CURVE":                   (0.0,   5000.0),
     # PID gains — 50 mm tape area
     "KP_MAX_50MM":                    (0.0,   50.0),
     "TD_MAX_50MM":                    (0.0,   5.0),

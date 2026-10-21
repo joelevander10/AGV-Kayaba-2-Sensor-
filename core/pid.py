@@ -18,6 +18,11 @@ class PIDController:
         self._ti          = ti
         self._ti_deadband = ti_deadband
         self._ti_max      = ti_max
+        # Defaults restored by update_gains when a gain set has no own
+        # integral settings (only the CURVE set has its own).
+        self._ti_default          = ti
+        self._ti_deadband_default = ti_deadband
+        self._ti_max_default      = ti_max
         self._dt          = dt
         # Output clamp as an asymmetric (low, high) pair. The constructor keeps a
         # single symmetric magnitude for backwards compatibility; update_gains can
@@ -42,7 +47,8 @@ class PIDController:
         self.speed_reduction = 0.0
         self._last_t         = None   # perf_counter ts of previous compute()
 
-    def update_gains(self, kp, td, n, v_red_coef, clamp_hi=None, clamp_lo=None):
+    def update_gains(self, kp, td, n, v_red_coef, clamp_hi=None, clamp_lo=None,
+                     ti=None, ti_deadband=None, ti_max=None):
         """Live gain switching (e.g. HIGH speed ↔ SLOW speed).
 
         Does NOT reset integrator or filter state — the switch should be smooth.
@@ -58,6 +64,10 @@ class PIDController:
         self._td         = td
         self._n          = n
         self._v_red_coef = v_red_coef
+        # Integral settings: own values for this gain set, else the defaults.
+        self._ti          = ti          if ti          is not None else self._ti_default
+        self._ti_deadband = ti_deadband if ti_deadband is not None else self._ti_deadband_default
+        self._ti_max      = ti_max      if ti_max      is not None else self._ti_max_default
         if clamp_hi is not None:
             self._clamp_hi = clamp_hi
         if clamp_lo is not None:
