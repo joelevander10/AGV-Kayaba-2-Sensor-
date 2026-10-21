@@ -134,6 +134,10 @@
     "SENSOR_MAX_MM": 100.0,
     "SENSOR_MAX_STEP_MM": 40.0,
     "_comment_rear": "Rear MGS1600 (REVERSE mode only) — same CAN bus, node 7. COB_ID = 0x180 + node_id (CANopen TPDO1), same formula as the front sensor (390 = 0x180+6).",
+    "_comment_reconnect": "Auto-reconnect: NMT_RESEND_S tanpa data dari sensor -> kirim ulang NMT start (sensor yang reboot karena tegangan drop). REOPEN_S tanpa data dari semua sensor -> tutup & buka ulang adapter CANable. RETRY_S = jeda antar percobaan.",
+    "NMT_RESEND_S": 0.3,
+    "REOPEN_S": 2.0,
+    "RETRY_S": 0.5,
     "REAR_CAN_NODE_ID": 7,
     "REAR_SENSOR_COB_ID": 391
   },

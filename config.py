@@ -246,6 +246,12 @@ FLAG_RIGHT_MARKER = _params["can_sensor"]["FLAG_RIGHT_MARKER"]
 FLAG_SENSOR_FAIL  = _params["can_sensor"]["FLAG_SENSOR_FAIL"]
 CAN_TIMEOUT      = _params["can_sensor"]["CAN_TIMEOUT"]
 CAN_NODE_ID      = _params["can_sensor"]["CAN_NODE_ID"]
+# Auto-reconnect (drivers/can_mgs1600.py): re-send NMT start after
+# NMT_RESEND_S without frames from a sensor; reopen the CANable adapter after
+# REOPEN_S without frames from any sensor; RETRY_S between reconnect attempts.
+CAN_NMT_RESEND_S = float(_params["can_sensor"].get("NMT_RESEND_S", 0.3))
+CAN_REOPEN_S     = float(_params["can_sensor"].get("REOPEN_S", 2.0))
+CAN_RETRY_S      = float(_params["can_sensor"].get("RETRY_S", 0.5))
 
 # Sensor sanity / slew limits for the lateral offset (left_mm) fed to the PID.
 # Reject readings beyond ±SENSOR_MAX_MM (sensor half-width is ~80 mm); clamp
