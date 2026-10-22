@@ -855,6 +855,12 @@
     "_comment_ignore_limit": "IGNORE_TROLLEY_LIMIT false = limit switch trolley DIPAKAI: trolley_hooked = DI9 OFF (tersangkut, NC) DAN pusher di proximity atas DI14. AGV baru jalan maju dari CC/marker kalau dua-duanya terpenuhi. true = limit switch diabaikan (hooked = DI14 saja).",
     "IGNORE_TROLLEY_LIMIT": false
   },
+  "trip_log": {
+    "_comment": "Log CSV per cabang di data/trip_logs/ (download dari halaman LOGS di web): trips = homepost->homepost dengan durasi, events = RFID, track hilang, mode, error dengan timestamp. BRANCH_NAMES = nama folder. KEEP_DAYS = file lebih lama dihapus otomatis.",
+    "ENABLED": true,
+    "BRANCH_NAMES": {"1": "UBC", "2": "Piston", "3": "ITG", "4": "Branch4"},
+    "KEEP_DAYS": 180
+  },
   "horn": {
     "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",
     "DO_AUTO": 8,

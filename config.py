@@ -752,6 +752,16 @@ TUNABLE_SPECS = {   # key: (min, max)
 # profile exactly, including every .get() fallback default.
 TUNABLE_DEFAULTS = {k: globals()[k] for k in TUNABLE_SPECS}
 
+# ── Trip / event logs (trip_logger.py) ──────────────────────────────────────
+# CSV logs per branch in data/trip_logs/<branchN_NAME>/, downloadable from the
+# web LOGS page. BRANCH_NAMES label the folders; KEEP_DAYS deletes old files.
+_tl = _params.get("trip_log", {})
+TRIP_LOG_ENABLED  = bool(_tl.get("ENABLED", True))
+TRIP_LOG_DIR      = os.environ.get("AGV_TRIP_LOG_DIR", os.path.join(_dir, "data", "trip_logs"))
+TRIP_BRANCH_NAMES = {str(k): str(v) for k, v in _tl.get(
+    "BRANCH_NAMES", {"1": "UBC", "2": "Piston", "3": "ITG"}).items() if not str(k).startswith("_")}
+TRIP_KEEP_DAYS    = int(_tl.get("KEEP_DAYS", 180))
+
 # ── Saved live tuning (PARAMS page APPLY) ────────────────────────────────────
 # APPLY on the PARAMS page saves the tuned values here; they are loaded on top
 # of the profile at every start, so they become the new defaults. Only values

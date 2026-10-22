@@ -7,6 +7,7 @@ import motion
 import calibration
 import autotune
 import rotate
+import trip_logger
 
 from core.pid import PIDController
 from debugging.plotter import RunRecorder
@@ -86,6 +87,7 @@ async def auto_mode(state, engine=None):
 
     current_target_speed = 0.0
     ramp_t               = None   # last speed-ramp step (perf_counter), see _ramp_dt
+    lost_since           = None   # time the tape was lost (trip log)
     tape_was_lost        = False
     was_sequence_stopped = False
     last_speed_mode      = None   # tracks when gain set must change
@@ -267,7 +269,10 @@ async def auto_mode(state, engine=None):
 
                 # ── Tape-loss guard ───────────────────────────────────────────
                 if not sensor["tape_detected"]:
-                    logger.warning("[AUTO] LOST TAPE — stopping")
+                    if not tape_was_lost:      # log once per loss, not every frame
+                        logger.warning("[AUTO] LOST TAPE — stopping")
+                        trip_logger.event("TRACK_LOST", "front sensor, AUTO forward")
+                        lost_since = time.time()
                     await motion.set_brake(state)
                     current_target_speed = 0.0
                     pid.reset()
@@ -279,6 +284,11 @@ async def auto_mode(state, engine=None):
 
                 if tape_was_lost:
                     logger.info("[AUTO] TAPE REACQUIRED — resuming")
+                    if lost_since is not None:
+                        _lost_s = time.time() - lost_since
+                        trip_logger.event("TRACK_BACK", f"front sensor, after {_lost_s:.1f} s")
+                        trip_logger.track_lost_time(_lost_s)
+                        lost_since = None
                     await motion.set_forward(state, 0.0)
                     tape_was_lost = False
 
@@ -517,6 +527,7 @@ async def reverse_mode(state, engine=None):
 
     current_target_speed = 0.0
     ramp_t               = None   # last speed-ramp step (perf_counter), see _ramp_dt
+    lost_since           = None   # time the tape was lost (trip log)
     tape_was_lost         = False
     last_valid_pv          = None
     deadline    = time.perf_counter() + config.REVERSE_TIMEOUT_S
@@ -627,7 +638,10 @@ async def reverse_mode(state, engine=None):
 
             if sensor is not None:
                 if not sensor["tape_detected"]:
-                    logger.warning("[REVERSE] LOST TAPE — stopping")
+                    if not tape_was_lost:      # log once per loss, not every frame
+                        logger.warning("[REVERSE] LOST TAPE — stopping")
+                        trip_logger.event("TRACK_LOST", "rear sensor, REVERSE")
+                        lost_since = time.time()
                     await motion.set_brake(state)
                     current_target_speed = 0.0
                     pid.reset()
@@ -638,6 +652,11 @@ async def reverse_mode(state, engine=None):
 
                 if tape_was_lost:
                     logger.info("[REVERSE] TAPE REACQUIRED — resuming")
+                    if lost_since is not None:
+                        _lost_s = time.time() - lost_since
+                        trip_logger.event("TRACK_BACK", f"rear sensor, after {_lost_s:.1f} s")
+                        trip_logger.track_lost_time(_lost_s)
+                        lost_since = None
                     await motion.set_reverse(state, 0.0)
                     tape_was_lost = False
 
@@ -850,6 +869,7 @@ async def mode_manager(state, engine=None, manager=None):
     last_branch_di = [False] * len(config.DI_BRANCH_SELECT)
     last_phys_manual = None   # physical MANUAL/AUTO selector, for the Q-key override
     rotate_from_manual = False   # 180° turn: return to MANUAL (True) or ARMED afterwards
+    last_logged_mode   = None    # trip log: last mode written as a MODE event
 
     async def _cancel_active():
         nonlocal active_task
@@ -917,6 +937,11 @@ async def mode_manager(state, engine=None, manager=None):
             continue
 
         di = state.latest_di
+
+        # Trip log: one MODE event per mode change.
+        if current_mode != last_logged_mode:
+            trip_logger.event("MODE", f"{last_logged_mode or '-'} → {current_mode or '-'}")
+            last_logged_mode = current_mode
 
         # ── Horn ────────────────────────────────────────────────────────────
         # DO_HORN_AUTO: on for the duration of any autonomous motion. Driven
@@ -1226,6 +1251,14 @@ async def mode_manager(state, engine=None, manager=None):
                 else:
                     logger.info("START — launching AUTO mode.")
                 state.call_run     = by_call
+                # Trip log: homepost → homepost. A start away from homepost
+                # continues the open trip (or opens a "mid-route" one).
+                if state.at_homepost:
+                    trip_logger.start_trip(state.active_branch, "homepost")
+                elif trip_logger.current() is None:
+                    trip_logger.start_trip(state.active_branch, "mid-route")
+                else:
+                    trip_logger.set_branch(state.active_branch)
                 state.leaving_home = state.at_homepost
                 state.at_homepost  = False
                 active_task        = asyncio.create_task(auto_mode(state, engine=engine))
@@ -1290,6 +1323,7 @@ async def mode_manager(state, engine=None, manager=None):
             # this actually leaves the running task and drops to ARMED —
             # operator must press START again to resume.
             logger.info("HOMEPOST / stop point reached — exiting AUTO, returning to ARMED.")
+            trip_logger.end_trip("homepost")
             await _cancel_active()
             await _flush_and_idle()
             _reset_sequence_state()

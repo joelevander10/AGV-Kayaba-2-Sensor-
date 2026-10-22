@@ -108,8 +108,13 @@ def setup_logging(
     root.setLevel(logging.DEBUG)   # root captures all; handlers filter
     root.addHandler(queue_handler)
 
+    # Trip logs: WARNING+ lines also go into the per-branch trip event CSVs.
+    from trip_logger import TripLogHandler
+    trip_handler = TripLogHandler()
+    trip_handler.setLevel(logging.WARNING)
+
     _listener = logging.handlers.QueueListener(
-        log_queue, file_handler, console_handler, memory_handler,
+        log_queue, file_handler, console_handler, memory_handler, trip_handler,
         respect_handler_level=True)
     _listener.start()
 

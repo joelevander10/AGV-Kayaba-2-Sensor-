@@ -184,6 +184,8 @@ async def run():
     loop = asyncio.get_running_loop()
 
     state  = AMRState()
+    import trip_logger
+    trip_logger.init(state)
     engine = SequenceEngine(state, config.SEQUENCES)
 
     logger.info("Loaded profile: %s  (%d sequence(s) defined)",

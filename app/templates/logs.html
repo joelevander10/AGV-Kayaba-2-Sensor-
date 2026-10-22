@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGV — Trip Logs</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #d4d0c8; color: #000; font-family: Consolas, 'Courier New', Courier, monospace;
+         font-size: 16px; padding: 12px; padding-bottom: 100px; }
+  .raised { border-top: 2px solid #fff; border-left: 2px solid #fff;
+            border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
+  #header { display: flex; align-items: center; gap: 19px; background: #000080; color: #fff;
+            padding: 8px 15px; margin-bottom: 12px; font-weight: bold; font-size: 22px; letter-spacing: 2px; }
+  #header .title { flex: 1; }
+  #ts { font-size: 14px; color: #c0c0c0; }
+  .card { background: #c0c0c0; padding: 10px 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 16px; color: #000080; margin-bottom: 8px; letter-spacing: 1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; }
+  th, td { border: 1px solid #a0a0a0; padding: 4px 6px; text-align: left; white-space: nowrap; }
+  th { background: #e0e0e0; }
+  td.num { text-align: right; }
+  .btn { display: inline-block; padding: 4px 14px; font-family: inherit; font-size: 13px; font-weight: bold;
+         color: #000; text-decoration: none; background: #c0c0c0; cursor: pointer;
+         border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
+  .btn:active { border-top-color: #808080; border-left-color: #808080; border-right-color: #fff; border-bottom-color: #fff; }
+  .folder { margin-bottom: 10px; }
+  .folder-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; font-weight: bold; }
+  .muted { color: #606060; font-size: 13px; }
+  .bad { color: #c00000; font-weight: bold; }
+  #cur { font-size: 15px; }
+  .tablewrap { overflow-x: auto; }
+  /* ── Nav bar ── */
+  #nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 86px; background: #1a1a6e;
+             display: flex; z-index: 200; border-top: 2px solid #4040a0; }
+  .nav-btn { flex: 1; display: flex; align-items: center; justify-content: center; color: #a0a0e0;
+             font-family: Consolas, 'Courier New', Courier, monospace; font-size: 22px; font-weight: bold;
+             letter-spacing: 1px; text-decoration: none; text-transform: uppercase; border-right: 1px solid #3030a0; }
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn.active { background: #0000c0; color: #fff; border-top: 2px solid #8080ff; }
+  .nav-btn:hover:not(.active) { background: #0000a0; color: #e0e0ff; }
+  .nav-btn.errors-btn { color: #ff8080; }
+</style>
+</head>
+<body>
+
+<div id="header" class="raised">
+  <span class="title">TRIP &amp; EVENT LOGS</span>
+  <a class="btn" href="/api/triplogs/zip/all">DOWNLOAD ALL (ZIP)</a>
+  <span id="ts">—</span>
+</div>
+
+<div class="card raised">
+  <h2>CURRENT TRIP</h2>
+  <div id="cur" class="muted">No trip running.</div>
+</div>
+
+<div class="card raised">
+  <h2>LAST TRIPS (HOMEPOST → HOMEPOST)</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Start</th><th>End</th><th>Branch</th><th>Duration</th><th>End reason</th>
+      <th>RFID</th><th>Track lost</th><th>Lost (s)</th><th>Errors</th></tr></thead>
+    <tbody id="trips"><tr><td colspan="9" class="muted">Loading…</td></tr></tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card raised">
+  <h2>FILES PER BRANCH</h2>
+  <div class="muted" style="margin-bottom:8px">*_trips.csv = one row per trip · *_events.csv = RFID reads, track lost / back, mode changes, errors (all with timestamp)</div>
+  <div id="folders" class="muted">Loading…</div>
+</div>
+
+<nav id="nav-bar">
+  <a class="nav-btn" href="/">HOME</a>
+  <a class="nav-btn" href="/manual">MANUAL</a>
+  <a class="nav-btn" href="/io">IO</a>
+  <a class="nav-btn" href="/params">PARAMS</a>
+  <a class="nav-btn active" href="/logs">LOGS</a>
+  <a class="nav-btn errors-btn" href="/errors">ERRORS</a>
+</nav>
+
+<script>
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function kb(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' kB'; }
+
+async function loadFolders() {
+  try {
+    const d = await (await fetch('/api/triplogs')).json();
+    const t = d.current_trip;
+    document.getElementById('cur').innerHTML = t
+      ? `<b>Branch ${esc(t.branch || '-')} ${esc(t.branch_name)}</b> · ${esc(t.trip_id)} · running <b>${esc(t.elapsed)}</b>` +
+        ` · from ${esc(t.start_point)} · RFID ${t.rfid_reads} · track lost ${t.track_lost}` +
+        ` · errors <span class="${t.errors ? 'bad' : ''}">${t.errors}</span>`
+      : 'No trip running.';
+    const box = document.getElementById('folders');
+    if (!d.folders.length) { box.textContent = 'No logs yet.'; return; }
+    box.innerHTML = d.folders.map(f => `
+      <div class="folder">
+        <div class="folder-head">${esc(f.name)}
+          <a class="btn" href="/api/triplogs/zip/${encodeURIComponent(f.name)}">ZIP</a>
+          <span class="muted">${f.files.length} files</span></div>
+        <div class="tablewrap"><table>
+          ${f.files.slice(0, 30).map(x => `<tr><td>${esc(x.name)}</td><td class="num">${kb(x.bytes)}</td>
+            <td>${esc(x.modified)}</td>
+            <td><a class="btn" href="/api/triplogs/file/${encodeURIComponent(f.name)}/${encodeURIComponent(x.name)}">DOWNLOAD</a></td></tr>`).join('')}
+        </table></div>
+      </div>`).join('');
+  } catch (e) { document.getElementById('folders').textContent = 'Cannot load logs.'; }
+}
+
+async function loadTrips() {
+  try {
+    const d = await (await fetch('/api/triplogs/recent')).json();
+    const tb = document.getElementById('trips');
+    if (!d.trips.length) { tb.innerHTML = '<tr><td colspan="9" class="muted">No finished trips yet.</td></tr>'; return; }
+    tb.innerHTML = d.trips.map(r => `<tr>
+      <td>${esc(r.start_time)}</td><td>${esc(r.end_time)}</td>
+      <td>${esc(r.branch)} ${esc(r.branch_name)}</td><td><b>${esc(r.duration)}</b></td>
+      <td>${esc(r.end_reason)}</td><td class="num">${esc(r.rfid_reads)}</td>
+      <td class="num ${r.track_lost > 0 ? 'bad' : ''}">${esc(r.track_lost)}</td><td class="num">${esc(r.track_lost_s)}</td>
+      <td class="num ${r.errors > 0 ? 'bad' : ''}">${esc(r.errors)}</td></tr>`).join('');
+  } catch (e) {}
+}
+
+function tick() {
+  document.getElementById('ts').textContent = new Date().toLocaleTimeString();
+  loadFolders();
+}
+tick(); loadTrips();
+setInterval(tick, 3000);
+setInterval(loadTrips, 15000);
+</script>
+</body>
+</html>

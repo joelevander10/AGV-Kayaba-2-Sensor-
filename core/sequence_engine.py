@@ -138,6 +138,14 @@ class SequenceEngine:
     async def on_rfid_tag(self, tag_hex: str):
         """Called by rfid_processor whenever a tag is read."""
         now = time.time()
+        fired = []
+        try:
+            return await self._on_rfid_tag(tag_hex, now, fired)
+        finally:
+            import trip_logger
+            trip_logger.event("RFID", f"{tag_hex} → {', '.join(fired) if fired else 'no action'}")
+
+    async def _on_rfid_tag(self, tag_hex, now, fired):
         for seq in self._sequences:
             trig = seq["trigger"]
 
@@ -146,6 +154,7 @@ class SequenceEngine:
                     continue
                 if not self._check_preconditions(seq, now):
                     continue
+                fired.append(seq["name"])
                 self._active_task = asyncio.create_task(self._run_sequence(seq))
 
             elif trig["type"] == "rfid_then_marker" and trig["rfid_tag"] == tag_hex:
@@ -153,6 +162,7 @@ class SequenceEngine:
                     continue
                 if not self._check_preconditions(seq, now):
                     continue
+                fired.append(seq["name"] + " (armed)")
                 # Arm: slow down for approach, record armed state. The approach
                 # speed is configurable per trigger ("approach_speed"); e.g. SLOW
                 # for a curved approach (with feedforward), APPROACH for a precise

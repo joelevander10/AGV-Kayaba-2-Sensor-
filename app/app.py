@@ -494,6 +494,98 @@ def api_errors():
     return jsonify(get_error_log())
 
 
+@app.route("/logs")
+def logs_page():
+    return render_template("logs.html")
+
+
+# ── Trip / event logs (trip_logger.py) — open access, read-only ──────────────
+def _trip_dir():
+    import config
+    return config.TRIP_LOG_DIR
+
+
+@app.route("/api/triplogs")
+def api_triplogs():
+    """Folders (one per branch + general) with their daily CSV files."""
+    import trip_logger
+    root = _trip_dir()
+    folders = []
+    try:
+        names = sorted(os.listdir(root))
+    except FileNotFoundError:
+        names = []
+    for folder in names:
+        d = os.path.join(root, folder)
+        if not os.path.isdir(d) or not trip_logger.FOLDER_RE.match(folder):
+            continue
+        files = []
+        for n in sorted(os.listdir(d), reverse=True):
+            if trip_logger.FILE_RE.match(n):
+                st = os.stat(os.path.join(d, n))
+                files.append({"name": n, "bytes": st.st_size,
+                              "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime))})
+        folders.append({"name": folder, "files": files})
+    return jsonify({"folders": folders, "current_trip": trip_logger.current()})
+
+
+@app.route("/api/triplogs/recent")
+def api_triplogs_recent():
+    """Last trips (homepost → homepost) from all branches, newest first."""
+    import csv, trip_logger
+    root = _trip_dir()
+    rows = []
+    try:
+        folders = os.listdir(root)
+    except FileNotFoundError:
+        folders = []
+    for folder in folders:
+        d = os.path.join(root, folder)
+        if not os.path.isdir(d):
+            continue
+        for n in sorted((x for x in os.listdir(d) if x.endswith("_trips.csv")), reverse=True)[:7]:
+            try:
+                with open(os.path.join(d, n), newline="", encoding="utf-8-sig") as f:
+                    for r in csv.DictReader(f):
+                        r["folder"] = folder
+                        rows.append(r)
+            except OSError:
+                pass
+    rows.sort(key=lambda r: r.get("start_time", ""), reverse=True)
+    return jsonify({"trips": rows[:50]})
+
+
+@app.route("/api/triplogs/file/<folder>/<name>")
+def api_triplogs_file(folder, name):
+    import trip_logger
+    if not trip_logger.FOLDER_RE.match(folder) or not trip_logger.FILE_RE.match(name):
+        abort(404)
+    return send_from_directory(os.path.join(_trip_dir(), folder), name, as_attachment=True)
+
+
+@app.route("/api/triplogs/zip/<folder>")
+def api_triplogs_zip(folder):
+    """ZIP of one folder, or of everything with folder = 'all'."""
+    import io, zipfile, trip_logger
+    from flask import send_file
+    root = _trip_dir()
+    if folder != "all" and not trip_logger.FOLDER_RE.match(folder):
+        abort(404)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for sub in ([folder] if folder != "all" else sorted(os.listdir(root)) if os.path.isdir(root) else []):
+            d = os.path.join(root, sub)
+            if not os.path.isdir(d):
+                continue
+            for n in sorted(os.listdir(d)):
+                if trip_logger.FILE_RE.match(n):
+                    z.write(os.path.join(d, n), arcname=f"{sub}/{n}")
+    buf.seek(0)
+    stamp = time.strftime("%Y%m%d_%H%M")
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name=f"agv_logs_{folder}_{stamp}.zip")
+
+
 @app.route("/io")
 def io_monitor():
     return render_template("io_monitor.html")
