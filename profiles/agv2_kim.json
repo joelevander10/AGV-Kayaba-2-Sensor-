@@ -859,7 +859,9 @@
     "_comment": "Log CSV per cabang di data/trip_logs/ (download dari halaman LOGS di web): trips = homepost->homepost dengan durasi, events = RFID, track hilang, mode, error dengan timestamp. BRANCH_NAMES = nama folder. KEEP_DAYS = file lebih lama dihapus otomatis.",
     "ENABLED": true,
     "BRANCH_NAMES": {"1": "UBC", "2": "Piston", "3": "ITG", "4": "Branch4"},
-    "KEEP_DAYS": 180
+    "KEEP_DAYS": 180,
+    "_comment_speed": "SPEED_SAMPLE_S = satu baris kecepatan tiap N detik selama trip (file *_speed.csv).",
+    "SPEED_SAMPLE_S": 1.0
   },
   "horn": {
     "_comment": "DO_AUTO on while AGV driving auto (running/reversing). DO_ALARM on while state.alarm_active (condition TBD by user).",

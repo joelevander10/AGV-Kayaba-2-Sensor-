@@ -761,6 +761,7 @@ TRIP_LOG_DIR      = os.environ.get("AGV_TRIP_LOG_DIR", os.path.join(_dir, "data"
 TRIP_BRANCH_NAMES = {str(k): str(v) for k, v in _tl.get(
     "BRANCH_NAMES", {"1": "UBC", "2": "Piston", "3": "ITG"}).items() if not str(k).startswith("_")}
 TRIP_KEEP_DAYS    = int(_tl.get("KEEP_DAYS", 180))
+TRIP_SPEED_SAMPLE_S = float(_tl.get("SPEED_SAMPLE_S", 1.0))   # one speed row per N s
 
 # ── Saved live tuning (PARAMS page APPLY) ────────────────────────────────────
 # APPLY on the PARAMS page saves the tuned values here; they are loaded on top

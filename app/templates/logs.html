@@ -59,16 +59,17 @@
   <h2>LAST TRIPS (HOMEPOST → HOMEPOST)</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Start</th><th>End</th><th>Branch</th><th>Duration</th><th>End reason</th>
+    <thead><tr><th>Start</th><th>End</th><th>Branch</th><th>Duration</th><th>Driving</th><th>Stopped</th>
+      <th>Distance (m)</th><th>Avg (m/s)</th><th>Max (m/s)</th><th>End reason</th>
       <th>RFID</th><th>Track lost</th><th>Lost (s)</th><th>Errors</th></tr></thead>
-    <tbody id="trips"><tr><td colspan="9" class="muted">Loading…</td></tr></tbody>
+    <tbody id="trips"><tr><td colspan="14" class="muted">Loading…</td></tr></tbody>
   </table>
   </div>
 </div>
 
 <div class="card raised">
   <h2>FILES PER BRANCH</h2>
-  <div class="muted" style="margin-bottom:8px">*_trips.csv = one row per trip · *_events.csv = RFID reads, track lost / back, mode changes, errors (all with timestamp)</div>
+  <div class="muted" style="margin-bottom:8px">*_trips.csv = one row per trip (duration, driving / stopped time, distance, avg / max speed) · *_speed.csv = speed every second · *_events.csv = RFID reads, track lost / back, mode changes, errors (all with timestamp and speed)</div>
   <div id="folders" class="muted">Loading…</div>
 </div>
 
@@ -91,7 +92,9 @@ async function loadFolders() {
     const t = d.current_trip;
     document.getElementById('cur').innerHTML = t
       ? `<b>Branch ${esc(t.branch || '-')} ${esc(t.branch_name)}</b> · ${esc(t.trip_id)} · running <b>${esc(t.elapsed)}</b>` +
-        ` · from ${esc(t.start_point)} · RFID ${t.rfid_reads} · track lost ${t.track_lost}` +
+        ` (driving ${esc(t.driving)}, stopped ${esc(t.stopped)})` +
+        ` · speed <b>${Number(t.speed_ms).toFixed(2)} m/s</b> (max ${Number(t.max_speed).toFixed(2)}) · ${esc(t.distance_m)} m` +
+        `<br>from ${esc(t.start_point)} · RFID ${t.rfid_reads} · track lost ${t.track_lost}` +
         ` · errors <span class="${t.errors ? 'bad' : ''}">${t.errors}</span>`
       : 'No trip running.';
     const box = document.getElementById('folders');
@@ -114,10 +117,12 @@ async function loadTrips() {
   try {
     const d = await (await fetch('/api/triplogs/recent')).json();
     const tb = document.getElementById('trips');
-    if (!d.trips.length) { tb.innerHTML = '<tr><td colspan="9" class="muted">No finished trips yet.</td></tr>'; return; }
+    if (!d.trips.length) { tb.innerHTML = '<tr><td colspan="14" class="muted">No finished trips yet.</td></tr>'; return; }
     tb.innerHTML = d.trips.map(r => `<tr>
       <td>${esc(r.start_time)}</td><td>${esc(r.end_time)}</td>
       <td>${esc(r.branch)} ${esc(r.branch_name)}</td><td><b>${esc(r.duration)}</b></td>
+      <td>${esc(r.driving || '')}</td><td>${esc(r.stopped || '')}</td>
+      <td class="num">${esc(r.distance_m || '')}</td><td class="num">${esc(r.avg_speed_ms || '')}</td><td class="num">${esc(r.max_speed_ms || '')}</td>
       <td>${esc(r.end_reason)}</td><td class="num">${esc(r.rfid_reads)}</td>
       <td class="num ${r.track_lost > 0 ? 'bad' : ''}">${esc(r.track_lost)}</td><td class="num">${esc(r.track_lost_s)}</td>
       <td class="num ${r.errors > 0 ? 'bad' : ''}">${esc(r.errors)}</td></tr>`).join('');

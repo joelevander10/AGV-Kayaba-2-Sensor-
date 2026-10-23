@@ -109,6 +109,7 @@ async def auto_mode(state, engine=None):
             if state.emergency_active:
                 await motion.idle(state)
                 current_target_speed = 0.0
+                state.target_speed = 0.0   # stopped (trip speed log)
                 pid.reset()
                 last_valid_pv = None
                 ff_filtered   = 0.0
@@ -121,6 +122,7 @@ async def auto_mode(state, engine=None):
                     logger.info("[AUTO] Sequence stop — holding.")
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     ff_filtered   = 0.0
@@ -141,6 +143,7 @@ async def auto_mode(state, engine=None):
                     logger.warning("[AUTO] LIDAR INNER field — stopping")
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     ff_filtered   = 0.0
@@ -275,6 +278,7 @@ async def auto_mode(state, engine=None):
                         lost_since = time.time()
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     ff_filtered   = 0.0
@@ -425,6 +429,7 @@ async def auto_mode(state, engine=None):
                     logger.warning("[AUTO] CAN TIMEOUT — sensor lost, stopping")
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     ff_filtered   = 0.0
@@ -572,6 +577,7 @@ async def reverse_mode(state, engine=None):
             if state.emergency_active:
                 await motion.idle(state)
                 current_target_speed = 0.0
+                state.target_speed = 0.0   # stopped (trip speed log)
                 pid.reset()
                 last_valid_pv = None
                 await asyncio.sleep(config.DT)
@@ -596,6 +602,7 @@ async def reverse_mode(state, engine=None):
                     logger.info("[REVERSE] Sequence stop — holding (brake).")
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     held_remain   = max(0.0, deadline - time.perf_counter())
@@ -618,6 +625,7 @@ async def reverse_mode(state, engine=None):
                     "holding (operator RESET required)", config.REVERSE_TIMEOUT_S)
                 await motion.set_brake(state)
                 current_target_speed = 0.0
+                state.target_speed = 0.0   # stopped (trip speed log)
                 pid.reset()
                 timed_out = True
 
@@ -644,6 +652,7 @@ async def reverse_mode(state, engine=None):
                         lost_since = time.time()
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     tape_was_lost = True
@@ -706,6 +715,7 @@ async def reverse_mode(state, engine=None):
                                    "rear" if use_rear else "front")
                     await motion.set_brake(state)
                     current_target_speed = 0.0
+                    state.target_speed = 0.0   # stopped (trip speed log)
                     pid.reset()
                     last_valid_pv = None
                     tape_was_lost = True

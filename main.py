@@ -239,6 +239,7 @@ async def run():
 
     core_tasks.append(safety_watchdog(state, watched=watched))
     core_tasks.append(rfid_processor(state, engine))
+    core_tasks.append(trip_logger.speed_sampler(state))   # speed log during trips
     core_tasks.append(modes.mode_manager(state, engine, manager))
     core_tasks.append(pusher_controller(state))
     core_tasks.append(keypad_reader(state))      # USB keypad on the AGV PC (returns at once if disabled)
